@@ -358,14 +358,28 @@ ensure_site_root() {
 				// MapLibre requires sprite/glyph URLs to be absolute.
 				// Keep the checked-in style host-agnostic (works on changing IPs) by converting
 				// any relative URLs into absolute URLs at runtime.
-				const base = window.location.href;
-				const abs = (u) => {
-					try {
-						return new URL(u, base).toString();
-					} catch (e) {
-						return u;
-					}
-				};
+                       	const base = window.location.href;
+                       	const origin = window.location.origin;
+                       	const abs = (u) => {
+                       		if (!u || typeof u !== 'string') return u;
+                       		// Already absolute http(s)
+                       		try {
+                       			const t = new URL(u);
+                       			if (t.protocol === 'http:' || t.protocol === 'https:') return u;
+                       		} catch (_) {}
+                       		// Preserve style tokens like {fontstack} and {range} — avoid URL encoding braces.
+                       		if (u.indexOf('{') !== -1 || u.indexOf('}') !== -1) {
+                       			if (u.startsWith('/')) return origin + u;
+                       			// relative path: resolve against current path (directory)
+                       			const dir = window.location.pathname.replace(/\/[^\/]*$/, '/');
+                       			return origin + dir + u;
+                       		}
+                       		try {
+                       			return new URL(u, base).toString();
+                       		} catch (e) {
+                       			return u;
+                       		}
+                       	};
 				const out = Object.assign({}, next);
 				if (out && typeof out === 'object') {
 					if (typeof out.sprite === 'string') out.sprite = abs(out.sprite);
