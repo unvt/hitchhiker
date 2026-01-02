@@ -435,6 +435,10 @@ finalize_site_permissions() {
 ensure_caddy_config() {
 	mkdir -p "$CADDY_SNIPPET_DIR"
 
+	# Allow automatic HTTPS when user provides a public hostname via HITCHHIKER_HOST.
+	# Default to 'hitchhiker' so a sensible host exists for local deployments.
+	HOST=${HITCHHIKER_HOST:-hitchhiker}
+
 	# Decide how to integrate with any existing Caddyfile.
 	# - If Caddyfile is missing, or it is the stock template, replace it with an import-only file.
 	#   This avoids the common :80 conflict with the stock site block.
@@ -466,12 +470,24 @@ EOF
 	fi
 
 	# Write (or overwrite) the Hitchhiker site snippet.
-	cat > "$CADDY_SNIPPET_FILE" <<EOF
+	if [ -n "$HOST" ]; then
+		# Use the provided host so Caddy can obtain TLS certificates automatically.
+		cat > "$CADDY_SNIPPET_FILE" <<EOF
+$HOST {
+		root * $SITE_ROOT
+		file_server
+	}
+EOF
+		echo "Configured Caddy site for host: $HOST (Caddy will attempt automatic HTTPS)."
+	else
+		cat > "$CADDY_SNIPPET_FILE" <<EOF
 :80 {
 	root * $SITE_ROOT
 	file_server
 }
 EOF
+		echo "Configured Caddy site on :80 (HTTP only). To enable automatic HTTPS, re-run with HITCHHIKER_HOST=your.domain"
+	fi
 
 	# Validate config before restarting to give clearer errors.
 	if command -v caddy >/dev/null 2>&1; then
