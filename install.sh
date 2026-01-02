@@ -226,6 +226,7 @@ ensure_site_root() {
 			const map = new maplibregl.Map({
 				container: 'map',
 				style: style,
+				hash: 'map',
 				center: [-11.5, 8.5],
 				zoom: 7
 			});
