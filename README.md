@@ -83,7 +83,48 @@ Note on GeoLocation API:
 - If you need geolocation in the browser while keeping Hitchhiker simple, common options are:
     - Use an SSH tunnel and access via `http://localhost:PORT` (secure-context exception for localhost).
     - Temporarily allow an insecure origin in your browser for development/testing.
-    - Switch Hitchhiker to HTTPS with a locally-trusted certificate (more setup; not the default).
+        - Switch Hitchhiker to HTTPS with a locally-trusted certificate (more setup; not the default).
+
+## PMTiles Extraction & Upload (macOS host)
+
+If you want a small, device-friendly PMTiles file that covers Sierra Leone, perform the extraction on a more powerful machine (your macOS "mother ship") and upload the resulting files to a tunnel host so the Pi can download them during install.
+
+Recommended bounding box (safe margin):
+
+```
+-13.5,6.5,-9.9,10.3
+```
+
+Example workflow (macOS, `pmtiles` binary installed):
+
+1. Create an `extracts/` directory in the repository and run `pmtiles extract` against a planet build (adjust source URLs as needed):
+
+```sh
+pmtiles extract https://r2-public.protomaps.com/protomaps-sample-datasets/planet.pmtiles \
+    extracts/protomaps-sl.pmtiles --bbox=-13.5,6.5,-9.9,10.3 --maxzoom=12
+
+pmtiles extract https://download.mapterhorn.com/planet.pmtiles \
+    extracts/mapterhorn-sl.pmtiles --bbox=-13.5,6.5,-9.9,10.3 --maxzoom=12
+```
+
+2. Upload the extracted files to your tunnel host. Use `rsync` with `--progress` to preserve/verify transfer and show progress:
+
+```sh
+rsync -av --progress extracts/protomaps-sl.pmtiles pod@pod.local:/home/pod/x-24b/data/
+rsync -av --progress extracts/mapterhorn-sl.pmtiles pod@pod.local:/home/pod/x-24b/data/
+```
+
+After upload, example public URLs might be:
+
+- https://tunnel.optgeo.org/protomaps-sl.pmtiles
+- https://tunnel.optgeo.org/mapterhorn-sl.pmtiles
+
+3. During `install.sh`, the installer will attempt to download those files into `/var/www/hitchhiker/pmtiles/` if they exist at the example URLs. This avoids heavy extraction on the Pi and keeps your microSD usage low.
+
+Notes:
+- `--maxzoom=12` is a reasonable compromise for country-level extracts; each additional zoom level roughly doubles the file size. Reduce `--maxzoom` to save space.
+- Adjust the source URLs if you maintain your own mirror or use a different daily-build endpoint.
+- The repository `.gitignore` is configured to exclude `extracts/*.pmtiles` to avoid checking large binary files into Git.
 
 Caddy configuration strategy (conservative + uninstallable):
 - A site snippet is written to `/etc/caddy/Caddyfile.d/hitchhiker.caddy`

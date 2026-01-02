@@ -184,6 +184,21 @@ download_vendor_assets() {
 	chmod 644 "$VENDOR_DIR/maplibre/"* "$VENDOR_DIR/pmtiles/"* || true
 }
 
+download_remote_pmtiles() {
+	echo "Attempting to download pre-extracted PMTiles from tunnel.optgeo.org (if available)..."
+	for f in protomaps-sl.pmtiles mapterhorn-sl.pmtiles; do
+		url="https://tunnel.optgeo.org/${f}"
+		out="$PMTILES_DIR/${f}"
+		if curl -fsSL "$url" -o "$out"; then
+			chmod 644 "$out" || true
+			echo "Downloaded ${f}"
+		else
+			echo "Notice: ${url} not available; skipping ${f}"
+			rm -f "$out" || true
+		fi
+	done
+}
+
 ensure_caddy_config() {
 	mkdir -p "$CADDY_SNIPPET_DIR"
 
@@ -249,6 +264,7 @@ main() {
 	install_caddy_if_missing
 	ensure_site_root
 	download_vendor_assets
+	download_remote_pmtiles
 	ensure_caddy_config
 
 	echo "Done. Try: http://$(hostname -I 2>/dev/null | awk '{print $1}')/"

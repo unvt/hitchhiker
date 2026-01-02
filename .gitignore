@@ -1,0 +1,4 @@
+# Ignore extracted PMTiles and large binaries
+/extracts/*.pmtiles
+*.pmtiles
+.DS_Store
