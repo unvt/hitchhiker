@@ -297,7 +297,9 @@ download_remote_pmtiles() {
 			continue
 		fi
 
-		if curl -fsSL "$url" -o "$out"; then
+		# Show a progress bar for potentially large PMTiles downloads.
+		# Use -f to fail on HTTP errors and -# for a progress bar.
+		if curl -fSL -# -o "$out" "$url"; then
 			chmod 644 "$out" || true
 			echo "Downloaded ${f}"
 		else
