@@ -14,6 +14,15 @@
       "maxzoom": 13,
       "encoding": "terrarium"
     }
+    ,
+    "mapterhorn-hs": {
+      "type": "raster-dem",
+      "attribution": "Mapterhorn (hillshade)",
+      "url": "pmtiles:///pmtiles/mapterhorn-sl.pmtiles",
+      "tileSize": 512,
+      "maxzoom": 13,
+      "encoding": "terrarium"
+    }
   },
   "terrain": {
     "source": "mapterhorn-dem",
@@ -408,7 +417,7 @@
     {
       "id": "multidirectional-hillshade",
       "type": "hillshade",
-      "source": "mapterhorn-dem",
+      "source": "mapterhorn-hs",
       "minzoom": 5,
       "maxzoom": 13,
       "paint": {
