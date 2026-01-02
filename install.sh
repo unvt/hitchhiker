@@ -8,6 +8,8 @@ CADDY_SNIPPET_DIR="/etc/caddy/Caddyfile.d"
 CADDY_SNIPPET_FILE="$CADDY_SNIPPET_DIR/hitchhiker.caddy"
 CADDYFILE="/etc/caddy/Caddyfile"
 
+CADDY_INSTALLED=0
+
 require_root() {
 	if [ "$(id -u)" -ne 0 ]; then
 		echo "ERROR: This installer must run as root (use sudo)." >&2
@@ -41,10 +43,11 @@ install_caddy_if_missing() {
 	# This follows Caddy's recommended approach for Debian-based systems.
 	export DEBIAN_FRONTEND=noninteractive
 	apt-get install -y debian-keyring debian-archive-keyring apt-transport-https gnupg
-	curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
-	curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | tee /etc/apt/sources.list.d/caddy-stable.list >/dev/null
+	curl -fsSL 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+	curl -fsSL 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | tee /etc/apt/sources.list.d/caddy-stable.list >/dev/null
 	apt-get update
 	apt-get install -y caddy
+	CADDY_INSTALLED=1
 }
 
 ensure_site_root() {
@@ -134,8 +137,12 @@ ensure_caddy_config() {
 }
 EOF
 
-	# Ensure the main Caddyfile imports snippets. If it doesn't exist, create a minimal one.
-	if [ ! -f "$CADDYFILE" ]; then
+	# Ensure the main Caddyfile imports snippets.
+	# Important: the Caddy package's default Caddyfile often includes its own `:80` site.
+	# If we only append an import line, we'd end up with two `:80` sites and Caddy may fail to start.
+	# To avoid surprising breakage, when Caddy is freshly installed by this script, we write a minimal
+	# Caddyfile that only imports snippet files.
+	if [ "$CADDY_INSTALLED" -eq 1 ]; then
 		mkdir -p "$(dirname "$CADDYFILE")"
 		cat > "$CADDYFILE" <<'EOF'
 {
@@ -145,24 +152,42 @@ EOF
 import Caddyfile.d/*.caddy
 EOF
 	else
-		if ! grep -qE '^[[:space:]]*import[[:space:]]+Caddyfile\.d/\*\.caddy[[:space:]]*$' "$CADDYFILE"; then
+		if [ ! -f "$CADDYFILE" ]; then
+			mkdir -p "$(dirname "$CADDYFILE")"
+			cat > "$CADDYFILE" <<'EOF'
+{
+	# Global options
+}
+
+import Caddyfile.d/*.caddy
+EOF
+		elif ! grep -qE '^[[:space:]]*import[[:space:]]+Caddyfile\.d/\*\.caddy[[:space:]]*$' "$CADDYFILE"; then
 			echo "Adding import line to $CADDYFILE"
 			printf '\nimport Caddyfile.d/*.caddy\n' >> "$CADDYFILE"
 		fi
 	fi
 
-	systemctl daemon-reload || true
-	systemctl enable caddy
-	systemctl restart caddy
+	# Validate config before restarting to give clearer errors.
+	if command -v caddy >/dev/null 2>&1; then
+		caddy validate --config "$CADDYFILE" --adapter caddyfile
+	fi
+
+	if command -v systemctl >/dev/null 2>&1; then
+		systemctl daemon-reload || true
+		systemctl enable caddy
+		systemctl restart caddy
+	else
+		echo "WARNING: systemctl not found; please start Caddy manually." >&2
+	fi
 }
 
 main() {
 	require_root
 	need_cmd id
 	need_cmd apt-get
-	need_cmd curl
 
 	ensure_packages
+	need_cmd curl
 	install_caddy_if_missing
 	ensure_site_root
 	download_vendor_assets
