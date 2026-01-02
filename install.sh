@@ -440,7 +440,15 @@ ensure_site_root() {
 				zoom: 7
 			});
 			map.addControl(new maplibregl.NavigationControl());
-			map.setStyle(style, { transformStyle });
+			       try {
+				       // Force full style replace to avoid diffing issues when previous
+				       // style is not fully loaded in some environments.
+				       map.setStyle(style, { transformStyle, diff: false });
+			       } catch (e) {
+				       console.error('map.setStyle failed:', e);
+				       // fallback: set style without transform to at least attempt load
+				       try { map.setStyle(style); } catch (e2) { console.error('fallback setStyle also failed:', e2); }
+			       }
 
 			// If you want to add 3D lighting or hillshade, extend the style.json with
 			// sources referencing /pmtiles/mapterhorn-sl.pmtiles and vector layers from protomaps.
