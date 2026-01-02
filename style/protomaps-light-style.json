@@ -4,7 +4,7 @@
     "protomaps": {
       "type": "vector",
       "attribution": "<a href=\"https://github.com/protomaps/basemaps\">Protomaps</a> © <a href=\"https://openstreetmap.org\">OpenStreetMap</a>",
-      "url": "pmtiles://https://tunnel.optgeo.org/protomaps-basemap.pmtiles"
+      "url": "pmtiles://pmtiles/protomaps-sl.pmtiles"
     },
     "mapterhorn-dem": {
       "type": "raster-dem",
@@ -403,6 +403,32 @@
       ],
       "paint": {
         "fill-color": "#e9e9ed"
+      }
+    },
+    {
+      "id": "multidirectional-hillshade",
+      "type": "hillshade",
+      "source": "mapterhorn-dem",
+      "minzoom": 5,
+      "maxzoom": 13,
+      "paint": {
+        "hillshade-method": "multidirectional",
+        "hillshade-highlight-color": [
+          "#FF4000",
+          "#FFFF00",
+          "#40ff00",
+          "#00FF80"
+        ],
+        "hillshade-shadow-color": [
+          "#00bfff",
+          "#0000ff",
+          "#bf00ff",
+          "#FF0080"
+        ],
+        "hillshade-illumination-direction": [270, 315, 0, 45],
+        "hillshade-illumination-altitude": [30, 30, 30, 30],
+        "hillshade-exaggeration": 0.3,
+        "hillshade-illumination-anchor": "viewport"
       }
     },
     {
