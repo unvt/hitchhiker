@@ -133,7 +133,7 @@ ensure_packages() {
 	# We keep this conservative; Raspberry Pi OS is Debian-based.
 	export DEBIAN_FRONTEND=noninteractive
 	apt-get update
-	apt-get install -y ca-certificates curl unzip
+	apt-get install -y ca-certificates curl openssl unzip
 }
 
 install_basemaps_assets() {
@@ -354,6 +354,26 @@ ensure_site_root() {
 	<script src="/vendor/maplibre/maplibre-gl.js"></script>
 	<script>
 		(async function() {
+			function transformStyle(previous, next) {
+				// MapLibre requires sprite/glyph URLs to be absolute.
+				// Keep the checked-in style host-agnostic (works on changing IPs) by converting
+				// any relative URLs into absolute URLs at runtime.
+				const base = window.location.href;
+				const abs = (u) => {
+					try {
+						return new URL(u, base).toString();
+					} catch (e) {
+						return u;
+					}
+				};
+				const out = Object.assign({}, next);
+				if (out && typeof out === 'object') {
+					if (typeof out.sprite === 'string') out.sprite = abs(out.sprite);
+					if (typeof out.glyphs === 'string') out.glyphs = abs(out.glyphs);
+				}
+				return out;
+			}
+
 			// Register pmtiles protocol per MapLibre example:
 			// const protocol = new pmtiles.Protocol();
 			// maplibregl.addProtocol('pmtiles', protocol.tile);
@@ -400,12 +420,13 @@ ensure_site_root() {
 			maplibregl.workerUrl = '/vendor/maplibre/maplibre-gl-worker.js';
 			const map = new maplibregl.Map({
 				container: 'map',
-				style: style,
+				style: { version: 8, sources: {}, layers: [] },
 				hash: 'map',
 				center: [-11.5, 8.5],
 				zoom: 7
 			});
 			map.addControl(new maplibregl.NavigationControl());
+			map.setStyle(style, { transformStyle });
 
 			// If you want to add 3D lighting or hillshade, extend the style.json with
 			// sources referencing /pmtiles/mapterhorn-sl.pmtiles and vector layers from protomaps.
