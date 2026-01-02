@@ -297,9 +297,16 @@ download_remote_pmtiles() {
 			continue
 		fi
 
-		# Show a progress bar for potentially large PMTiles downloads.
-		# Use -f to fail on HTTP errors and -# for a progress bar.
-		if curl -fSL -# -o "$out" "$url"; then
+		# Show a progress bar for potentially large PMTiles downloads, but
+		# only when running interactively. When not attached to a TTY keep
+		# curl silent to avoid noisy output in non-interactive installs.
+		if [ -t 2 ]; then
+			CURL_OPTS="-fSL -#"
+		else
+			CURL_OPTS="-fsSL"
+		fi
+
+		if curl $CURL_OPTS -o "$out" "$url"; then
 			chmod 644 "$out" || true
 			echo "Downloaded ${f}"
 		else
