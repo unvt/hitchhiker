@@ -419,7 +419,6 @@
       "type": "hillshade",
       "source": "mapterhorn-hs",
       "minzoom": 5,
-      "maxzoom": 13,
       "paint": {
         "hillshade-method": "multidirectional",
         "hillshade-highlight-color": [
@@ -7946,6 +7945,6 @@
       }
     }
   ],
-  "sprite": "https://protomaps.github.io/basemaps-assets/sprites/v4/light",
-  "glyphs": "https://protomaps.github.io/basemaps-assets/fonts/{fontstack}/{range}.pbf"
+  "sprite": "/vendor/basemaps-assets/sprites/v4/light",
+  "glyphs": "/vendor/basemaps-assets/fonts/{fontstack}/{range}.pbf"
 }

@@ -7,7 +7,10 @@ set -eu
 #    - auto: show progress only on TTY (default)
 #    - always: always show curl progress
 #    - never: never show progress
+#  - HITCHHIKER_BASEMAPS_ASSETS: set to 1 to install Protomaps basemaps-assets (sprites + glyphs)
+#    into /var/www/hitchhiker/vendor/basemaps-assets for fully-offline rendering.
 HITCHHIKER_PROGRESS=${HITCHHIKER_PROGRESS:-auto}
+HITCHHIKER_BASEMAPS_ASSETS=${HITCHHIKER_BASEMAPS_ASSETS:-1}
 
 # Simple logging helpers
 info() { printf '%s\n' "$*"; }
@@ -130,7 +133,63 @@ ensure_packages() {
 	# We keep this conservative; Raspberry Pi OS is Debian-based.
 	export DEBIAN_FRONTEND=noninteractive
 	apt-get update
-	apt-get install -y ca-certificates curl openssl
+	apt-get install -y ca-certificates curl unzip
+}
+
+install_basemaps_assets() {
+	# Installs sprites and glyphs from https://github.com/protomaps/basemaps-assets
+	# into the web root so the map can render fully offline.
+	# Idempotent: skips if already present.
+	DEST="$VENDOR_DIR/basemaps-assets"
+	ZIP_URL="https://github.com/protomaps/basemaps-assets/archive/refs/heads/main.zip"
+
+	if [ "${HITCHHIKER_BASEMAPS_ASSETS:-0}" != "1" ]; then
+		echo "Skipping basemaps-assets install (set HITCHHIKER_BASEMAPS_ASSETS=1 to enable)."
+		return 0
+	fi
+
+	# If fonts and sprites exist, assume already installed.
+	if [ -d "$DEST/fonts" ] && [ -d "$DEST/sprites" ]; then
+		echo "Found existing basemaps-assets under $DEST; skipping download."
+		return 0
+	fi
+
+	tmpzip="/tmp/hitch_basemaps_assets.$$_.zip"
+	tmpdir="/tmp/hitch_basemaps_assets.$$"
+
+	rm -rf "$tmpdir" || true
+	mkdir -p "$tmpdir"
+
+	echo "Downloading basemaps-assets for offline sprites/glyphs..."
+	if ! curl -fsSL "$ZIP_URL" -o "$tmpzip"; then
+		err "Failed to download basemaps-assets zip: $ZIP_URL"
+		rm -rf "$tmpdir" "$tmpzip" || true
+		return 1
+	fi
+
+	if ! unzip -q "$tmpzip" -d "$tmpdir"; then
+		err "Failed to unzip basemaps-assets archive"
+		rm -rf "$tmpdir" "$tmpzip" || true
+		return 1
+	fi
+
+	# The archive expands to basemaps-assets-main/
+	srcdir="$(find "$tmpdir" -maxdepth 2 -type d -name 'basemaps-assets-*' | head -n 1)"
+	if [ -z "$srcdir" ] || [ ! -d "$srcdir" ]; then
+		err "Unexpected basemaps-assets zip structure; cannot locate extracted folder"
+		rm -rf "$tmpdir" "$tmpzip" || true
+		return 1
+	fi
+
+	mkdir -p "$VENDOR_DIR"
+	rm -rf "$DEST" || true
+	mv "$srcdir" "$DEST"
+
+	rm -rf "$tmpdir" "$tmpzip" || true
+	chmod -R 644 "$DEST" || true
+	find "$DEST" -type d -exec chmod 755 {} \; || true
+
+	echo "Installed basemaps-assets to $DEST"
 }
 
 
@@ -683,6 +742,7 @@ main() {
 	install_caddy_if_missing
 	ensure_site_root
 	download_vendor_assets
+	install_basemaps_assets || true
 	download_remote_pmtiles
 	download_protomaps_style
 	download_style_assets
