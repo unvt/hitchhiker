@@ -1,172 +1,138 @@
 # UNVT Hitchhiker
 
-**A portable web map server that rides on your personal hotspot.**
+A portable, low-power web map server that “hitches a ride” on your personal hotspot.
 
----
+UNVT Hitchhiker is a lightweight UNVT Portable-style setup for serving static web maps (HTML/CSS/JS + PMTiles) from small devices such as Raspberry Pi Zero-class hardware.
 
-## What is UNVT Hitchhiker?
+This repository is intentionally simple:
+- A shell installer served via GitHub Pages
+- A matching uninstaller
+- A static document root under `/var/www/hitchhiker`
 
-UNVT Hitchhiker is a *yet another* implementation of **UNVT Portable**: a minimalist, ultra-low-power **portable web map server** designed to run on devices such as the **Raspberry Pi Zero W** and connect via a **personal mobile hotspot** (e.g. iPhone Personal Hotspot).
+## Status
 
-Instead of owning network infrastructure, UNVT Hitchhiker deliberately *hitches a ride* on existing personal connectivity. By combining static, cloud-native geospatial data (such as **PMTiles**) with a lightweight web stack, it enables anyone to **carry, host, and share maps wherever a phone signal exists**.
+This project is under active construction. The installer aims to be:
+- Practical on a fresh Raspberry Pi OS Lite installation
+- Idempotent (safe to re-run)
+- Conservative (does not aggressively overwrite existing Caddy configs)
 
-In short:
+## Supported Environment
 
-> You don’t need a big ship.
-> Just hitch a ride — and bring a map.
+- OS: Raspberry Pi OS (Debian-based). Target: Raspberry Pi OS Lite (32-bit)
+- Internet access during installation (to download packages and JS assets)
+- Privileges: root is required (writes to `/var`, `/etc`, uses `systemctl`)
 
----
+## Install
 
-## Design Principles
-
-* **Personal first**: Uses personal hotspots instead of dedicated networks
-* **Ultra-lightweight**: Designed for Raspberry Pi Zero W–class hardware
-* **Static by design**: Static files, no heavy backend services
-* **Cloud-native formats**: PMTiles and other range-request–friendly formats
-* **Portable & reproducible**: Easy to rebuild, reflash, and redeploy
-
----
-
-## Default System Configuration
-
-These defaults are intentionally simple and explicit.
-
-### Machine
-
-* **Hostname**: `hitchhiker.local`
-
-### User Account
-
-* **Username**: `hitchhiker`
-* **Password**: `hitchhiker`
-
-> ⚠️ Change these credentials in real deployments.
-
-### Wi-Fi Network
-
-UNVT Hitchhiker connects to an existing Wi-Fi network provided by a mobile device.
-
-* **SSID**: `vectortiles`
-* **Password**: `vectortiles`
-
-This is typically an iPhone Personal Hotspot, but any equivalent hotspot works.
-
----
-
-## Web Stack
-
-### Web Server
-
-* **Caddy**
-
-  * Automatic HTTPS (when applicable)
-  * Simple configuration
-  * Single binary
-
-### Document Root
-
-```
-/var/hitchhiker
-```
-
-This directory serves as the **DocumentRoot** for all web content.
-
-### Map Library
-
-* **MapLibre GL JS**
-
-  * Always uses the **latest stable version**
-  * Installed directly into `/var/hitchhiker`
-  * No build step required for basic usage
-
-Static assets (HTML, CSS, JS, PMTiles) live together under this directory.
-
----
-
-## Repository Structure (Conceptual)
-
-```
-.
-├── install.sh            # Installer script (pipe-to-shell)
-├── caddy/
-│   └── Caddyfile         # Caddy configuration
-├── www/
-│   ├── index.html        # Map entry point
-│   ├── style.json        # MapLibre style
-│   └── pmtiles/          # PMTiles data
-└── README.md
-```
-
----
-
-## Installation
-
-UNVT Hitchhiker is installed using a **pipe-to-shell** installer for maximum portability and minimal friction.
+The installer is hosted on GitHub Pages (repository root):
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/UNVT/hitchhiker/main/install.sh | sh
+curl -fsSL https://unvt.github.io/hitchhiker/install.sh | sudo sh
 ```
 
-The installer:
+Notes:
+- `sudo` is required.
+- If you do not trust pipe-to-shell, inspect first:
 
-* Installs required system packages
-* Sets up Caddy
-* Creates `/var/hitchhiker`
-* Downloads the latest MapLibre GL JS
-* Configures the system for immediate use
+```sh
+curl -fsSL https://unvt.github.io/hitchhiker/install.sh | less
+```
 
-> The goal is not perfection, but **fast, repeatable setup**.
+## Uninstall
 
----
+Uninstall removes the Hitchhiker document root and the Hitchhiker Caddy site snippet.
+If you have PMTiles data you want to keep, back it up first.
+
+```sh
+curl -fsSL https://unvt.github.io/hitchhiker/uninstall.sh | sudo sh
+```
+
+## What Gets Installed (Filesystem)
+
+Document root:
+
+```
+/var/www/hitchhiker
+├── index.html
+├── vendor/
+│   ├── maplibre/
+│   │   ├── maplibre-gl-csp.js
+│   │   ├── maplibre-gl-csp-worker.js
+│   │   └── maplibre-gl.css
+│   └── pmtiles/
+│       └── pmtiles.js
+└── pmtiles/
+    └── (your .pmtiles files)
+```
+
+Why `/var/www/hitchhiker`?
+- It matches common Debian conventions (and avoids inventing a new top-level under `/var`).
+
+Why not `/var/www` directly?
+- On Debian/Raspberry Pi OS, `/var/www` is commonly shared by other web content (often `/var/www/html`). Using a dedicated subdirectory avoids accidental conflicts.
+- It makes uninstall safer: removing `/var/www/hitchhiker` is predictable, whereas “uninstalling” from `/var/www` risks deleting unrelated files.
+
+If you still want the absolute simplest layout (`/var/www` as the site root), you can do it, but Hitchhiker’s installer/uninstaller should then be more conservative (delete only the specific files it created, and never remove `/var/www` itself).
+
+## Web Server (Caddy)
+
+The installer installs Caddy (if missing) and configures Hitchhiker as an HTTP site on port 80.
+
+Note on GeoLocation API:
+- Most browsers require a “secure context” for `navigator.geolocation` (HTTPS or `localhost`).
+- If you need geolocation in the browser while keeping Hitchhiker simple, common options are:
+    - Use an SSH tunnel and access via `http://localhost:PORT` (secure-context exception for localhost).
+    - Temporarily allow an insecure origin in your browser for development/testing.
+    - Switch Hitchhiker to HTTPS with a locally-trusted certificate (more setup; not the default).
+
+Caddy configuration strategy (conservative + uninstallable):
+- A site snippet is written to `/etc/caddy/Caddyfile.d/hitchhiker.caddy`
+- The main `/etc/caddy/Caddyfile` is updated only to add an `import Caddyfile.d/*.caddy` line if it is missing
+
+This keeps Hitchhiker configuration isolated and easy to remove.
+
+## MapLibre GL JS and pmtiles.js (How We Fetch “Latest”)
+
+Hitchhiker installs MapLibre GL JS and pmtiles.js as static vendor assets so the device can serve everything locally.
+
+Current approach:
+- Download from UNPKG using the `@latest` tag
+- Place files under `/var/www/hitchhiker/vendor/...`
+
+Files fetched:
+- `https://unpkg.com/maplibre-gl@latest/dist/maplibre-gl-csp.js`
+- `https://unpkg.com/maplibre-gl@latest/dist/maplibre-gl-csp-worker.js`
+- `https://unpkg.com/maplibre-gl@latest/dist/maplibre-gl.css`
+- `https://unpkg.com/pmtiles@latest/dist/pmtiles.js`
+
+Trade-offs:
+- Pros: simple, no build step, always pulls a current stable release
+- Cons: not perfectly reproducible over time (because “latest” moves)
+
+If you need reproducibility, pin versions inside `install.sh` (e.g. `maplibre-gl@5.15.0`, `pmtiles@4.3.2`).
+
+## Adding Your PMTiles
+
+Copy your `.pmtiles` into:
+
+```
+/var/www/hitchhiker/pmtiles/
+```
+
+The default `index.html` is a minimal template intended to be edited for your own style and data.
 
 ## Relationship to UNVT Portable
 
-UNVT Hitchhiker is:
+UNVT Hitchhiker is a valid UNVT Portable-style implementation focused on:
+- Static-by-default web maps
+- Personal connectivity (hotspot) instead of infrastructure ownership
+- Low-power operation
 
-* ✔ A **valid UNVT Portable implementation**
-* ✔ Optimized for **personal connectivity**
-* ✔ Focused on **static web maps**
-
-It intentionally avoids:
-
-* Running its own access point
-* Heavy GIS backends
-* Complex orchestration
-
-This makes it suitable for **training, demonstrations, workshops, and field experimentation**.
-
----
-
-## Intended Use Cases
-
-* Geospatial capacity building
-* Workshops and Dojo-style learning
-* Field demos with minimal infrastructure
-* Emergency or constrained-network scenarios
-* Personal experimentation with cloud-native geospatial stacks
-
----
-
-## What UNVT Hitchhiker is NOT
-
-* ❌ A high-availability production server
-* ❌ A replacement for enterprise GIS infrastructure
-* ❌ A device that provides its own network
-
-UNVT Hitchhiker is a **tool for thinking, learning, and sharing**.
-
----
-
-## Operating System
-
-* **Raspberry Pi OS Trixie Lite (32-bit)**
-
-This project assumes a clean installation of Raspberry Pi OS Trixie Lite (32-bit) as the base operating system.
-
----
+It intentionally does not:
+- Run its own access point
+- Provide heavyweight GIS backends
+- Target high-availability production deployments
 
 ## License
 
-**CC0 1.0 Universal (Public Domain Dedication)**
-
-UNVT Hitchhiker is released under CC0. You are free to use, modify, distribute, and reuse the contents of this repository without restriction.
+CC0 1.0 Universal (Public Domain Dedication)
