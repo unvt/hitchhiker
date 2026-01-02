@@ -1,6 +1,52 @@
 #!/bin/sh
 set -eu
 
+# Environment knobs:
+#  - HITCHHIKER_HOST: host to configure for Caddy (TLS only when explicitly set)
+#  - HITCHHIKER_PROGRESS: progress display for downloads: auto|always|never
+#    - auto: show progress only on TTY (default)
+#    - always: always show curl progress
+#    - never: never show progress
+HITCHHIKER_PROGRESS=${HITCHHIKER_PROGRESS:-auto}
+
+# Simple logging helpers
+info() { printf '%s\n' "$*"; }
+warn() { printf 'WARNING: %s\n' "$*" >&2; }
+err() { printf 'ERROR: %s\n' "$*" >&2; }
+
+# download_file <url> <out>
+# Uses HITCHHIKER_PROGRESS and respects TTY when set to auto.
+download_file() {
+	url=$1
+	out=$2
+
+	case "${HITCHHIKER_PROGRESS:-auto}" in
+		always)
+			CURL_OPTS="-fSL -#"
+			;;
+		never)
+			CURL_OPTS="-fsSL"
+			;;
+		*)
+			if [ -t 2 ]; then
+				CURL_OPTS="-fSL -#"
+			else
+				CURL_OPTS="-fsSL"
+			fi
+			;;
+	esac
+
+	if curl $CURL_OPTS -o "$out" "$url"; then
+		chmod 644 "$out" || true
+		info "Downloaded $(basename "$out")"
+		return 0
+	else
+		warn "failed to download ${url}; skipping $(basename "$out")"
+		rm -f "$out" || true
+		return 1
+	fi
+}
+
 SITE_ROOT="/var/www/hitchhiker"
 VENDOR_DIR="$SITE_ROOT/vendor"
 PMTILES_DIR="$SITE_ROOT/pmtiles"
@@ -299,21 +345,9 @@ download_remote_pmtiles() {
 			continue
 		fi
 
-		# Show a progress bar for potentially large PMTiles downloads, but
-		# only when running interactively. When not attached to a TTY keep
-		# curl silent to avoid noisy output in non-interactive installs.
-		if [ -t 2 ]; then
-			CURL_OPTS="-fSL -#"
-		else
-			CURL_OPTS="-fsSL"
-		fi
-
-		if curl $CURL_OPTS -o "$out" "$url"; then
-			chmod 644 "$out" || true
-			echo "Downloaded ${f}"
-		else
-			echo "Notice: failed to download ${url}; skipping ${f}"
-			rm -f "$out" || true
+		# Use the shared download helper (respects HITCHHIKER_PROGRESS)
+		if download_file "$url" "$out"; then
+			:
 		fi
 
 		done
