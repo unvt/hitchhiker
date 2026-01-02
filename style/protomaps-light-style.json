@@ -4,7 +4,7 @@
   "sources": {
     "protomaps": {
       "type": "vector",
-      "url": "pmtiles://pmtiles/protomaps-sl.pmtiles"
+      "url": "pmtiles://https://tunnel.optgeo.org/protomaps-basemap.pmtiles"
     }
   },
   "light": {
