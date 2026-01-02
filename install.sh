@@ -298,6 +298,14 @@ download_protomaps_style() {
 		fi
 	done
 
+	# Try fetching the bundled style from this repo (when installer is run via curl|sh)
+	REPO_RAW="https://raw.githubusercontent.com/unvt/hitchhiker/main/style/protomaps-light-style.json"
+	if curl -fsSL "$REPO_RAW" -o "$STYLE_DIR/style.json"; then
+		chmod 644 "$STYLE_DIR/style.json" || true
+		echo "Downloaded bundled style.json from repository"
+		return 0
+	fi
+
 	echo "Notice: could not obtain a protomaps light style.json; using bundled minimal style if present."
 }
 
@@ -311,6 +319,14 @@ download_style_assets() {
 		cp "$(pwd)/style/protomaps-sprite.json" "$STYLE_DIR/sprites/sprite.json" || true
 		cp "$(pwd)/style/protomaps-sprite.png" "$STYLE_DIR/sprites/sprite.png" || true
 		echo "Installed packaged sprites to $STYLE_DIR/sprites/"
+	else
+		# Try to fetch packaged sprites from the repository raw URLs (best-effort)
+		SPR_JSON_RAW="https://raw.githubusercontent.com/unvt/hitchhiker/main/style/protomaps-sprite.json"
+		SPR_PNG_RAW="https://raw.githubusercontent.com/unvt/hitchhiker/main/style/protomaps-sprite.png"
+		if curl -fsSL "$SPR_JSON_RAW" -o "$STYLE_DIR/sprites/sprite.json"; then
+			curl -fsSL "$SPR_PNG_RAW" -o "$STYLE_DIR/sprites/sprite.png" || true
+			echo "Downloaded sprites from repository"
+		fi
 	fi
 
 	# Attempt to discover a "sprite" entry in the installed style.json and download it if remote.
