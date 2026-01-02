@@ -1,0 +1,32 @@
+# Justfile for creating Sierra Leone extracts and uploading them
+# Requires: pmtiles (go-pmtiles) installed on the host
+
+# Bounding box (minLon,minLat,maxLon,maxLat)
+BBOX := "-13.5,6.5,-9.9,10.3"
+
+# Source planet files -- adjust if you use a different mirror
+PROTOMAPS_SRC := "https://build.protomaps.com/20260101.pmtiles"
+MAPTERHORN_SRC := "https://download.mapterhorn.com/planet.pmtiles"
+
+# Target filenames (local to this folder)
+PROTOMAPS_OUT := "protomaps-sl.pmtiles"
+MAPTERHORN_OUT := "mapterhorn-sl.pmtiles"
+
+# Default maxzoom for country extract (tweak to trade size vs detail)
+MAXZOOM := "12"
+
+# Number of download threads for pmtiles extract
+DOWNLOAD_THREADS := "2"
+
+protomaps:
+	@echo "Checking Protomaps source: {{PROTOMAPS_SRC}}"
+	@bash -lc 'if curl -fsI "{{PROTOMAPS_SRC}}"; then echo "Source reachable, extracting with {{DOWNLOAD_THREADS}} download threads..."; pmtiles extract "{{PROTOMAPS_SRC}}" "{{PROTOMAPS_OUT}}" --bbox={{BBOX}} --maxzoom={{MAXZOOM}} --download-threads={{DOWNLOAD_THREADS}}; else echo "ERROR: Protomaps source not reachable: {{PROTOMAPS_SRC}}"; exit 1; fi'
+
+mapterhorn:
+	@echo "Checking Mapterhorn source: {{MAPTERHORN_SRC}}"
+	@bash -lc 'if curl -fsI "{{MAPTERHORN_SRC}}"; then echo "Source reachable, extracting with {{DOWNLOAD_THREADS}} download threads..."; pmtiles extract "{{MAPTERHORN_SRC}}" "{{MAPTERHORN_OUT}}" --bbox={{BBOX}} --maxzoom={{MAXZOOM}} --download-threads={{DOWNLOAD_THREADS}}; else echo "ERROR: Mapterhorn source not reachable: {{MAPTERHORN_SRC}}"; exit 1; fi'
+
+upload:
+	@echo "Uploading extracts to pod@pod.local:/home/pod/x-24b/data/"
+	@rsync -av --progress {{PROTOMAPS_OUT}} pod@pod.local:/home/pod/x-24b/data/
+	@rsync -av --progress {{MAPTERHORN_OUT}} pod@pod.local:/home/pod/x-24b/data/
