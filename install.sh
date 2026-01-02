@@ -178,34 +178,54 @@ ensure_site_root() {
 	</div>
 	<div id="map"></div>
 
-	<script src="/vendor/maplibre/maplibre-gl-csp.js"></script>
 	<script src="/vendor/pmtiles/pmtiles.js"></script>
+	<script src="/vendor/maplibre/maplibre-gl-csp.js"></script>
 	<script>
 		(async function() {
-			// Best-effort: register pmtiles protocol with MapLibre if the plugin exposes a register function.
+			// Register pmtiles protocol per MapLibre example:
+			// const protocol = new pmtiles.Protocol();
+			// maplibregl.addProtocol('pmtiles', protocol.tile);
 			try {
-				if (window.pmtiles && pmtiles.maplibre && typeof pmtiles.maplibre.register === 'function') {
-					pmtiles.maplibre.register(pmtiles);
-					console.log('pmtiles.maplibre registered');
-				} else if (window.pmtiles && typeof pmtiles.registerProtocol === 'function') {
-					pmtiles.registerProtocol();
-					console.log('pmtiles.registerProtocol called');
+				const PM = window.pmtiles || window.PMTiles || null;
+				if (PM && typeof PM.Protocol === 'function') {
+					try {
+						const protocol = new PM.Protocol();
+						if (window.maplibregl && typeof maplibregl.addProtocol === 'function') {
+							maplibregl.addProtocol('pmtiles', protocol.tile);
+							console.log('pmtiles protocol registered via maplibregl.addProtocol');
+						} else {
+							console.warn('maplibregl.addProtocol not available; pmtiles:// may not be supported');
+						}
+					} catch (e) {
+						console.warn('Failed to instantiate pmtiles Protocol', e);
+					}
+				} else {
+					console.warn('pmtiles plugin not found or Protocol constructor missing; pmtiles:// unsupported');
 				}
 			} catch (e) {
 				console.warn('pmtiles protocol registration failed (non-fatal)', e);
 			}
 
-			// Load the offline style (bundled by installer)
+			// Load the offline style (bundled by installer) with improved diagnostics.
 			let style = null;
 			try {
-				style = await (await fetch('/style/protomaps-light/style.json')).json();
+				const resp = await fetch('/style/protomaps-light/style.json');
+				if (!resp.ok) {
+					const txt = await resp.text().catch(() => '<unreadable response>');
+					console.error('Failed to fetch style.json:', resp.status, txt);
+					style = { version: 8, sources: {}, layers: [] };
+				} else {
+					try {
+						style = await resp.json();
+					} catch (e) {
+						const txt = await resp.text().catch(() => '<unreadable response>');
+						console.error('Style JSON parse failed:', e, txt);
+						style = { version: 8, sources: {}, layers: [] };
+					}
+				}
 			} catch (e) {
 				console.error('Failed to load style.json:', e);
-				style = {
-					version: 8,
-					sources: {},
-					layers: []
-				};
+				style = { version: 8, sources: {}, layers: [] };
 			}
 
 			// Create the map with the loaded style.
