@@ -225,7 +225,7 @@ ensure_site_root() {
 	<div id="map"></div>
 
 	<script src="/vendor/pmtiles/pmtiles.js"></script>
-	<script src="/vendor/maplibre/maplibre-gl-csp.js"></script>
+	<script src="/vendor/maplibre/maplibre-gl.js"></script>
 	<script>
 		(async function() {
 			// Register pmtiles protocol per MapLibre example:
@@ -269,8 +269,9 @@ ensure_site_root() {
 			}
 
 			// Create the map with the loaded style.
-			// Ensure MapLibre's worker is pointed at the CSP worker we bundled.
-			maplibregl.workerUrl = '/vendor/maplibre/maplibre-gl-csp-worker.js';
+			// Prefer a non-CSP worker if available (installer places it at /vendor/maplibre/maplibre-gl-worker.js).
+			// If that file is missing, MapLibre will use its default worker loading behavior.
+			maplibregl.workerUrl = '/vendor/maplibre/maplibre-gl-worker.js';
 			const map = new maplibregl.Map({
 				container: 'map',
 				style: style,
@@ -317,10 +318,23 @@ HTML
 download_vendor_assets() {
 	echo "Downloading vendor assets (latest)..."
 
-	# MapLibre GL JS (CSP build) + worker + CSS
-	curl -fsSL "https://unpkg.com/maplibre-gl@latest/dist/maplibre-gl-csp.js" -o "$VENDOR_DIR/maplibre/maplibre-gl-csp.js"
-	curl -fsSL "https://unpkg.com/maplibre-gl@latest/dist/maplibre-gl-csp-worker.js" -o "$VENDOR_DIR/maplibre/maplibre-gl-csp-worker.js"
-	curl -fsSL "https://unpkg.com/maplibre-gl@latest/dist/maplibre-gl.css" -o "$VENDOR_DIR/maplibre/maplibre-gl.css"
+	# MapLibre GL JS: prefer non-CSP build (simpler worker loading). Fall back to CSP build if non-CSP not available.
+	if curl -fsSL -o "$VENDOR_DIR/maplibre/maplibre-gl.js" "https://cdn.jsdelivr.net/npm/maplibre-gl/dist/maplibre-gl.js"; then
+		echo "Downloaded non-CSP maplibre-gl.js"
+		# Try to fetch a corresponding worker; not all CDN builds expose a separate worker file.
+		if curl -fsSL -o "$VENDOR_DIR/maplibre/maplibre-gl-worker.js" "https://cdn.jsdelivr.net/npm/maplibre-gl/dist/maplibre-gl-worker.js"; then
+			echo "Downloaded maplibre-gl-worker.js"
+		else
+			echo "Notice: maplibre-gl-worker.js not available on CDN; client will use default worker loading behavior"
+			rm -f "$VENDOR_DIR/maplibre/maplibre-gl-worker.js" || true
+		fi
+		curl -fsSL -o "$VENDOR_DIR/maplibre/maplibre-gl.css" "https://cdn.jsdelivr.net/npm/maplibre-gl/dist/maplibre-gl.css" || true
+	else
+		# Fallback: CSP distribution
+		curl -fsSL "https://unpkg.com/maplibre-gl@latest/dist/maplibre-gl-csp.js" -o "$VENDOR_DIR/maplibre/maplibre-gl-csp.js"
+		curl -fsSL "https://unpkg.com/maplibre-gl@latest/dist/maplibre-gl-csp-worker.js" -o "$VENDOR_DIR/maplibre/maplibre-gl-csp-worker.js"
+		curl -fsSL "https://unpkg.com/maplibre-gl@latest/dist/maplibre-gl.css" -o "$VENDOR_DIR/maplibre/maplibre-gl.css"
+	fi
 
 	# pmtiles.js
 	curl -fsSL "https://unpkg.com/pmtiles@latest/dist/pmtiles.js" -o "$VENDOR_DIR/pmtiles/pmtiles.js"
