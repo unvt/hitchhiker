@@ -5,7 +5,19 @@
       "type": "vector",
       "attribution": "<a href=\"https://github.com/protomaps/basemaps\">Protomaps</a> © <a href=\"https://openstreetmap.org\">OpenStreetMap</a>",
       "url": "pmtiles://https://tunnel.optgeo.org/protomaps-basemap.pmtiles"
+    },
+    "mapterhorn-dem": {
+      "type": "raster-dem",
+      "attribution": "Mapterhorn",
+      "url": "pmtiles:///pmtiles/mapterhorn-sl.pmtiles",
+      "tileSize": 512,
+      "maxzoom": 13,
+      "encoding": "terrarium"
     }
+  },
+  "terrain": {
+    "source": "mapterhorn-dem",
+    "exaggeration": 1.0
   },
   "layers": [
     {
