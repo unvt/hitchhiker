@@ -5,11 +5,6 @@
     "protomaps": {
       "type": "vector",
       "url": "pmtiles://pmtiles/protomaps-sl.pmtiles"
-    },
-    "mapterhorn-dem": {
-      "type": "raster-dem",
-      "tiles": ["/pmtiles/mapterhorn-sl.pmtiles"],
-      "tileSize": 256
     }
   },
   "light": {
@@ -19,17 +14,6 @@
     "position": [1.15, 210, 30]
   },
   "layers": [
-    {
-      "id": "hillshade",
-      "type": "hillshade",
-      "source": "mapterhorn-dem",
-      "paint": {
-        "hillshade-exaggeration": 0.9,
-        "hillshade-shadow-color": "#000000",
-        "hillshade-highlight-color": "#ffffff",
-        "hillshade-accent-color": "#888888"
-      }
-    },
     {
       "id": "protomaps-land",
       "type": "fill",
