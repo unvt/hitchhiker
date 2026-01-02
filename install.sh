@@ -384,6 +384,39 @@ ensure_site_root() {
 				if (out && typeof out === 'object') {
 					if (typeof out.sprite === 'string') out.sprite = abs(out.sprite);
 					if (typeof out.glyphs === 'string') out.glyphs = abs(out.glyphs);
+
+					// Quick defensive wrapping: avoid runtime errors when numeric expressions
+					// evaluate to null by wrapping common numeric paint/layout properties
+					// with a coalesce expression that supplies a sensible default.
+					const numericDefaults = {
+						"line-width": 1,
+						"fill-opacity": 1,
+						"circle-radius": 1,
+						"hillshade-exaggeration": 0.3,
+						"raster-opacity": 1,
+						"icon-size": 1,
+						"text-size": 12,
+						"fill-extrusion-height": 0,
+						"line-gap-width": 0
+					};
+
+					function maybeWrap(obj) {
+						if (!obj || typeof obj !== 'object') return;
+						for (const prop of Object.keys(obj)) {
+							if (!(prop in numericDefaults)) continue;
+							const val = obj[prop];
+							if (Array.isArray(val) && val.length > 0 && val[0] !== 'coalesce') {
+								obj[prop] = ['coalesce', val, numericDefaults[prop]];
+							}
+						}
+					}
+
+					if (Array.isArray(out.layers)) {
+						for (const layer of out.layers) {
+							maybeWrap(layer.paint);
+							maybeWrap(layer.layout);
+						}
+					}
 				}
 				return out;
 			}
