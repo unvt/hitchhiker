@@ -44,20 +44,67 @@ ensure_packages() {
 	apt-get install -y ca-certificates curl
 }
 
-install_caddy_if_missing() {
-	if command -v caddy >/dev/null 2>&1; then
-		return 0
+get_caddy_latest_tag() {
+	# Returns a tag like "v2.10.2".
+	# Uses GitHub API to keep "latest" behavior at install time.
+	# (No jq dependency; keep it POSIX sh.)
+	tag=$(curl -fsSL "https://api.github.com/repos/caddyserver/caddy/releases/latest" \
+		| sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' \
+		| head -n 1)
+	if [ -z "$tag" ]; then
+		echo "ERROR: Failed to determine latest Caddy release tag from GitHub API." >&2
+		exit 1
+	fi
+	echo "$tag"
+}
+
+install_caddy_from_github_release() {
+	arch=$(uname -m 2>/dev/null || echo unknown)
+	case "$arch" in
+		armv6l|armv6*) suffix="linux_armv6" ;;
+		armv7l|armv7*) suffix="linux_armv7" ;;
+		armv8l) suffix="linux_armv7" ;;
+		aarch64) suffix="linux_arm64" ;;
+		x86_64|amd64) suffix="linux_amd64" ;;
+		*)
+			echo "ERROR: Unsupported architecture for automatic Caddy install: $arch" >&2
+			echo "ERROR: Please install Caddy manually, then re-run install.sh." >&2
+			exit 1
+			;;
+	esac
+
+	tag=$(get_caddy_latest_tag)
+	ver=${tag#v}
+	deb="caddy_${ver}_${suffix}.deb"
+	url="https://github.com/caddyserver/caddy/releases/download/${tag}/${deb}"
+	tmp="/tmp/${deb}"
+
+	echo "Installing Caddy from GitHub release: $deb"
+	curl -fsSL "$url" -o "$tmp"
+
+	# Install the .deb (and fix up dependencies if needed)
+	if ! dpkg -i "$tmp"; then
+		apt-get -f install -y
 	fi
 
-	echo "Installing Caddy..."
-	# Install Caddy via the official apt repository.
-	# This follows Caddy's recommended approach for Debian-based systems.
-	export DEBIAN_FRONTEND=noninteractive
-	apt-get install -y debian-keyring debian-archive-keyring apt-transport-https gnupg
-	curl -fsSL 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
-	curl -fsSL 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | tee /etc/apt/sources.list.d/caddy-stable.list >/dev/null
-	apt-get update
-	apt-get install -y caddy
+	# Verify the binary runs on this CPU.
+	if ! caddy version >/dev/null 2>&1; then
+		echo "ERROR: Caddy was installed but failed to run on this CPU." >&2
+		echo "ERROR: (This may indicate an architecture/GOARM mismatch.)" >&2
+		exit 1
+	fi
+}
+
+install_caddy_if_missing() {
+	if command -v caddy >/dev/null 2>&1; then
+		# Some builds can be present but not runnable on older ARM (Illegal instruction).
+		if caddy version >/dev/null 2>&1; then
+			return 0
+		fi
+		echo "Detected an installed Caddy that cannot run; reinstalling a compatible build..." >&2
+	fi
+
+	install_caddy_from_github_release
 	CADDY_INSTALLED=1
 }
 
