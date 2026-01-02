@@ -5,7 +5,7 @@
 BBOX := "-13.5,6.5,-9.9,10.3"
 
 # Source planet files -- adjust if you use a different mirror
-PROTOMAPS_SRC := "https://build.protomaps.com/20260101.pmtiles"
+PROTOMAPS_SRC := "https://demo-bucket.protomaps.com/v4.pmtiles"
 MAPTERHORN_SRC := "https://download.mapterhorn.com/planet.pmtiles"
 
 # Target filenames (local to this folder)
