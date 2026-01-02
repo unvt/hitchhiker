@@ -21,6 +21,49 @@ is_stock_caddyfile() {
 	return 0
 }
 
+verify_pmtiles_protocol() {
+	echo "Verifying local HTTP server and PMTiles assets (best-effort)"
+	if ! command -v curl >/dev/null 2>&1; then
+		echo "Notice: curl not available; skipping verification"
+		return 0
+	fi
+
+	# Check local HTTP server
+	if ! curl -fsS http://127.0.0.1/ >/dev/null 2>&1; then
+		echo "Warning: local HTTP server did not respond at http://127.0.0.1/." >&2
+		echo "If Caddy is not running, start it (systemctl start caddy) or inspect /var/log/syslog." >&2
+		return 0
+	fi
+
+	# Fetch vendor pmtiles.js via HTTP and look for expected hints
+	if [ -f "$VENDOR_DIR/pmtiles/pmtiles.js" ]; then
+		tmpf="/tmp/hitch_pmtiles.js"
+		if curl -fsS http://127.0.0.1/vendor/pmtiles/pmtiles.js -o "$tmpf"; then
+			if grep -qE 'maplibre|registerProtocol|pmtiles' "$tmpf"; then
+				echo "pmtiles.js served and contains MapLibre/pmtiles integration hints"
+			else
+				echo "Notice: pmtiles.js served but did not contain expected keywords; it may be a different build"
+			fi
+			rm -f "$tmpf" || true
+		else
+			echo "Warning: failed to fetch /vendor/pmtiles/pmtiles.js from local server" >&2
+		fi
+	else
+		echo "Notice: $VENDOR_DIR/pmtiles/pmtiles.js not present on disk; vendor download may have failed" >&2
+	fi
+
+	# Verify that any downloaded PMTiles are being served
+	for f in protomaps-sl.pmtiles mapterhorn-sl.pmtiles; do
+		if [ -f "$PMTILES_DIR/$f" ]; then
+			if curl -fsI "http://127.0.0.1/pmtiles/$f" >/dev/null 2>&1; then
+				echo "PMTiles $f is accessible at /pmtiles/$f"
+			else
+				echo "Warning: $f exists on disk but is not accessible at /pmtiles/$f" >&2
+			fi
+		fi
+	done
+}
+
 require_root() {
 	if [ "$(id -u)" -ne 0 ]; then
 		echo "ERROR: This installer must run as root (use sudo)." >&2
@@ -316,49 +359,6 @@ ensure_caddy_config() {
 		cat > "$CADDYFILE" <<'EOF'
 {
 	# Global options
-}
-
-verify_pmtiles_protocol() {
-	echo "Verifying local HTTP server and PMTiles assets (best-effort)"
-	if ! command -v curl >/dev/null 2>&1; then
-		echo "Notice: curl not available; skipping verification"
-		return 0
-	fi
-
-	# Check local HTTP server
-	if ! curl -fsS http://127.0.0.1/ >/dev/null 2>&1; then
-		echo "Warning: local HTTP server did not respond at http://127.0.0.1/." >&2
-		echo "If Caddy is not running, start it (systemctl start caddy) or inspect /var/log/syslog." >&2
-		return 0
-	fi
-
-	# Fetch vendor pmtiles.js via HTTP and look for expected hints
-	if [ -f "$VENDOR_DIR/pmtiles/pmtiles.js" ]; then
-		tmpf="/tmp/hitch_pmtiles.js"
-		if curl -fsS http://127.0.0.1/vendor/pmtiles/pmtiles.js -o "$tmpf"; then
-			if grep -qE 'maplibre|registerProtocol|pmtiles' "$tmpf"; then
-				echo "pmtiles.js served and contains MapLibre/pmtiles integration hints"
-			else
-				echo "Notice: pmtiles.js served but did not contain expected keywords; it may be a different build"
-			fi
-			rm -f "$tmpf" || true
-		else
-			echo "Warning: failed to fetch /vendor/pmtiles/pmtiles.js from local server" >&2
-		fi
-	else
-		echo "Notice: $VENDOR_DIR/pmtiles/pmtiles.js not present on disk; vendor download may have failed" >&2
-	fi
-
-	# Verify that any downloaded PMTiles are being served
-	for f in protomaps-sl.pmtiles mapterhorn-sl.pmtiles; do
-		if [ -f "$PMTILES_DIR/$f" ]; then
-			if curl -fsI "http://127.0.0.1/pmtiles/$f" >/dev/null 2>&1; then
-				echo "PMTiles $f is accessible at /pmtiles/$f"
-			else
-				echo "Warning: $f exists on disk but is not accessible at /pmtiles/$f" >&2
-			fi
-		fi
-	done
 }
 
 import Caddyfile.d/*.caddy
