@@ -10,6 +10,17 @@ CADDYFILE="/etc/caddy/Caddyfile"
 
 CADDY_INSTALLED=0
 
+is_stock_caddyfile() {
+	# Detect the default Caddyfile that ships with the Debian package.
+	# We only rewrite the Caddyfile when it looks like this stock template.
+	[ -f "$CADDYFILE" ] || return 1
+	grep -q 'The Caddyfile is an easy way to configure your Caddy web server\.' "$CADDYFILE" || return 1
+	grep -qE '^[[:space:]]*:80[[:space:]]*\{' "$CADDYFILE" || return 1
+	grep -qE '^[[:space:]]*root[[:space:]]+\*[[:space:]]+/usr/share/caddy[[:space:]]*$' "$CADDYFILE" || return 1
+	grep -qE '^[[:space:]]*file_server([[:space:]]|$)' "$CADDYFILE" || return 1
+	return 0
+}
+
 require_root() {
 	if [ "$(id -u)" -ne 0 ]; then
 		echo "ERROR: This installer must run as root (use sudo)." >&2
@@ -129,20 +140,12 @@ download_vendor_assets() {
 ensure_caddy_config() {
 	mkdir -p "$CADDY_SNIPPET_DIR"
 
-	# Write (or overwrite) the Hitchhiker snippet.
-	cat > "$CADDY_SNIPPET_FILE" <<EOF
-:80 {
-	root * $SITE_ROOT
-	file_server
-}
-EOF
-
-	# Ensure the main Caddyfile imports snippets.
-	# Important: the Caddy package's default Caddyfile often includes its own `:80` site.
-	# If we only append an import line, we'd end up with two `:80` sites and Caddy may fail to start.
-	# To avoid surprising breakage, when Caddy is freshly installed by this script, we write a minimal
-	# Caddyfile that only imports snippet files.
-	if [ "$CADDY_INSTALLED" -eq 1 ]; then
+	# Decide how to integrate with any existing Caddyfile.
+	# - If Caddyfile is missing, or it is the stock template, replace it with an import-only file.
+	#   This avoids the common :80 conflict with the stock site block.
+	# - If the user already has a custom :80 site, we do NOT install a second :80 site (conflict).
+	#   We fail safely with guidance.
+	if [ ! -f "$CADDYFILE" ] || is_stock_caddyfile; then
 		mkdir -p "$(dirname "$CADDYFILE")"
 		cat > "$CADDYFILE" <<'EOF'
 {
@@ -152,20 +155,28 @@ EOF
 import Caddyfile.d/*.caddy
 EOF
 	else
-		if [ ! -f "$CADDYFILE" ]; then
-			mkdir -p "$(dirname "$CADDYFILE")"
-			cat > "$CADDYFILE" <<'EOF'
-{
-	# Global options
-}
+		if grep -qE '^[[:space:]]*:80[[:space:]]*\{' "$CADDYFILE"; then
+			echo "WARNING: /etc/caddy/Caddyfile already defines a :80 site." >&2
+			echo "WARNING: To avoid conflicting configs, Hitchhiker will NOT be enabled automatically." >&2
+			echo "WARNING: Options:" >&2
+			echo "WARNING:  - Edit /etc/caddy/Caddyfile to serve $SITE_ROOT, or" >&2
+			echo "WARNING:  - Replace it with an import-only Caddyfile that imports Caddyfile.d/*.caddy" >&2
+			return 0
+		fi
 
-import Caddyfile.d/*.caddy
-EOF
-		elif ! grep -qE '^[[:space:]]*import[[:space:]]+Caddyfile\.d/\*\.caddy[[:space:]]*$' "$CADDYFILE"; then
+		if ! grep -qE '^[[:space:]]*import[[:space:]]+Caddyfile\.d/\*\.caddy[[:space:]]*$' "$CADDYFILE"; then
 			echo "Adding import line to $CADDYFILE"
 			printf '\nimport Caddyfile.d/*.caddy\n' >> "$CADDYFILE"
 		fi
 	fi
+
+	# Write (or overwrite) the Hitchhiker site snippet.
+	cat > "$CADDY_SNIPPET_FILE" <<EOF
+:80 {
+	root * $SITE_ROOT
+	file_server
+}
+EOF
 
 	# Validate config before restarting to give clearer errors.
 	if command -v caddy >/dev/null 2>&1; then

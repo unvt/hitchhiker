@@ -91,6 +91,8 @@ Caddy configuration strategy (conservative + uninstallable):
 
 This keeps Hitchhiker configuration isolated and easy to remove.
 
+If you already have a custom Caddy configuration on `:80`, Hitchhiker will avoid making conflicting changes. In that case, you may need to manually point your existing `:80` site to `/var/www/hitchhiker`.
+
 ## MapLibre GL JS and pmtiles.js (How We Fetch “Latest”)
 
 Hitchhiker installs MapLibre GL JS and pmtiles.js as static vendor assets so the device can serve everything locally.
