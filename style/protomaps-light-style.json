@@ -11,7 +11,7 @@
       "attribution": "Mapterhorn",
       "url": "pmtiles:///pmtiles/mapterhorn-sl.pmtiles",
       "tileSize": 512,
-      "maxzoom": 13,
+      "maxzoom": 12,
       "encoding": "terrarium"
     }
     ,
@@ -20,7 +20,7 @@
       "attribution": "Mapterhorn (hillshade)",
       "url": "pmtiles:///pmtiles/mapterhorn-sl.pmtiles",
       "tileSize": 512,
-      "maxzoom": 13,
+      "maxzoom": 12,
       "encoding": "terrarium"
     }
   },
