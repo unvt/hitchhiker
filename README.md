@@ -85,6 +85,37 @@ Note on GeoLocation API:
     - Temporarily allow an insecure origin in your browser for development/testing.
         - Switch Hitchhiker to HTTPS with a locally-trusted certificate (more setup; not the default).
 
+Enabling automatic HTTPS (HITCHHIKER_HOST)
+----------------------------------------
+
+Hitchhiker keeps TLS disabled by default to avoid accidental ACME requests for non-public names. The installer sets a sensible default hostname of `hitchhiker` for local reference, but Caddy will only attempt automatic HTTPS when you explicitly provide a public hostname via the `HITCHHIKER_HOST` environment variable.
+
+Examples:
+
+- Download and run the installer interactively (recommended) and enable TLS by setting `HITCHHIKER_HOST` when invoking the script with `sudo`:
+
+```sh
+curl -fsSL -o install.sh https://unvt.github.io/hitchhiker/install.sh
+HITCHHIKER_HOST=example.com sudo sh install.sh
+```
+
+- Or, download first and inspect before running (safer):
+
+```sh
+curl -fsSL -o install.sh https://unvt.github.io/hitchhiker/install.sh
+less install.sh    # verify contents
+HITCHHIKER_HOST=example.com sudo sh install.sh
+```
+
+Important notes when enabling TLS:
+
+- `example.com` must resolve to the device's public IP address (DNS A/AAAA record), and port 80/443 must be reachable for ACME (HTTP-01) validation.
+- If the device is behind NAT or a carrier grade NAT, automatic certificate issuance will likely fail unless you configure port forwarding or use a publicly routable host.
+- If you only need local HTTPS for development, consider creating a locally-trusted certificate or use a hostname mapped in `/etc/hosts` and import a local CA into your devices — automatic ACME issuance requires a publicly routable name.
+- If you change `HITCHHIKER_HOST` later, re-run the installer to update the Caddy snippet (it is idempotent).
+
+If you do not set `HITCHHIKER_HOST`, Hitchhiker remains an HTTP site on `:80` and the built-in default hostname `hitchhiker` is only useful as a local label (no certificates are requested).
+
 ## PMTiles Extraction & Upload (macOS host)
 
 If you want a small, device-friendly PMTiles file that covers Sierra Leone, perform the extraction on a more powerful machine (your macOS "mother ship") and upload the resulting files to a tunnel host so the Pi can download them during install.
