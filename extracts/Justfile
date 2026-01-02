@@ -30,3 +30,4 @@ upload:
 	@echo "Uploading extracts to pod@pod.local:/home/pod/x-24b/data/"
 	@rsync -av --progress {{PROTOMAPS_OUT}} pod@pod.local:/home/pod/x-24b/data/
 	@rsync -av --progress {{MAPTERHORN_OUT}} pod@pod.local:/home/pod/x-24b/data/
+

@@ -22,6 +22,12 @@
       "tileSize": 512,
       "maxzoom": 12,
       "encoding": "terrarium"
+    },
+    "freetown": {
+      "type": "raster",
+      "attribution": "Freetown imagery",
+      "url": "pmtiles:///pmtiles/freetown_2025-10-22_nearest.pmtiles",
+      "tileSize": 256
     }
   },
   "terrain": {
@@ -435,8 +441,30 @@
         ],
         "hillshade-illumination-direction": [270, 315, 0, 45],
         "hillshade-illumination-altitude": [30, 30, 30, 30],
-        "hillshade-exaggeration": 0.3,
+        "hillshade-exaggeration": [
+          "interpolate",
+          ["linear"],
+          ["zoom"],
+          13, 0.3,
+          15, 0
+        ],
         "hillshade-illumination-anchor": "viewport"
+      }
+    },
+    {
+      "id": "freetown-imagery",
+      "type": "raster",
+      "source": "freetown",
+      "minzoom": 13,
+      "paint": {
+        "raster-opacity": [
+          "interpolate",
+          ["linear"],
+          ["zoom"],
+          13, 0,
+          15, 1
+        ],
+        "raster-fade-duration": 300
       }
     },
     {
