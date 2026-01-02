@@ -127,6 +127,21 @@ Important notes when enabling TLS:
 
 If you do not set `HITCHHIKER_HOST`, Hitchhiker remains an HTTP site on `:80` and the built-in default hostname `hitchhiker` is only useful as a local label (no certificates are requested).
 
+Self-signed HTTPS (local testing)
+---------------------------------
+
+If you need HTTPS for local features like the Geolocation API but cannot use a public hostname, the installer can generate a self-signed certificate and configure Caddy to use it. This will enable HTTPS, but browsers will treat the certificate as untrusted until you import it into the client device's trust store.
+
+- To enable self-signed cert generation at install time, set these environment variables when running the installer:
+
+```sh
+HITCHHIKER_HOST=hitchhiker.local HITCHHIKER_SELF_SIGN=1 sudo sh install.sh
+```
+
+- The installer will place the generated cert at `/etc/caddy/ssl/<HITCHHIKER_HOST>.crt` and key at `/etc/caddy/ssl/<HITCHHIKER_HOST>.key` and configure Caddy to use them.
+- You must import the `.crt` into the client device's trust store (browser/OS) to avoid security warnings and to allow `navigator.geolocation` to work. On macOS, double-click the `.crt` and add it to the System keychain, then mark it as trusted for SSL. On Android/iOS you can import the cert into the device's trust store (procedures differ by OS/version).
+- Note: self-signed certs are suitable for local testing and development. For public deployments prefer a real CA-signed certificate (set `HITCHHIKER_HOST` to a publicly resolvable name and allow Caddy to manage ACME certificates).
+
 ## PMTiles Extraction & Upload (macOS host)
 
 If you want a small, device-friendly PMTiles file that covers Sierra Leone, perform the extraction on a more powerful machine (your macOS "mother ship") and upload the resulting files to a tunnel host so the Pi can download them during install.

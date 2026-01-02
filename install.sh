@@ -130,7 +130,74 @@ ensure_packages() {
 	# We keep this conservative; Raspberry Pi OS is Debian-based.
 	export DEBIAN_FRONTEND=noninteractive
 	apt-get update
-	apt-get install -y ca-certificates curl
+	apt-get install -y ca-certificates curl openssl
+}
+
+
+generate_self_signed_cert() {
+	# generate a self-signed cert for HOST if not already present
+	HOSTNAME="$1"
+	SSL_DIR="/etc/caddy/ssl"
+	CRT_FILE="$SSL_DIR/${HOSTNAME}.crt"
+	KEY_FILE="$SSL_DIR/${HOSTNAME}.key"
+
+	if [ -f "$CRT_FILE" ] && [ -f "$KEY_FILE" ]; then
+		echo "Using existing self-signed cert: $CRT_FILE"
+		return 0
+	fi
+
+	mkdir -p "$SSL_DIR"
+
+	# Determine a sensible IP SAN (first non-empty from hostname -I)
+	IP_SAN=""
+	if command -v hostname >/dev/null 2>&1; then
+		ipfirst=$(hostname -I 2>/dev/null | awk '{print $1}' || true)
+		if [ -n "$ipfirst" ]; then
+			IP_SAN=",IP:${ipfirst}"
+		fi
+	fi
+
+	# Create a temporary openssl config with SAN
+	TMPCONF=$(mktemp /tmp/hitch_ssl_conf.XXXX)
+	cat > "$TMPCONF" <<EOF
+[ req ]
+default_bits       = 2048
+prompt             = no
+default_md         = sha256
+distinguished_name = dn
+req_extensions     = req_ext
+
+[ dn ]
+CN = $HOSTNAME
+
+[ req_ext ]
+subjectAltName = @alt_names
+
+[ alt_names ]
+DNS.1 = $HOSTNAME
+DNS.2 = localhost
+IP.1 = 127.0.0.1
+EOF
+
+	# If we detected an IP, append it
+	if [ -n "$IP_SAN" ]; then
+		# add as IP.2
+		echo "IP.2 = ${ipfirst}" >> "$TMPCONF"
+	fi
+
+	# Generate key and cert
+	openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
+		-keyout "$KEY_FILE" -out "$CRT_FILE" -config "$TMPCONF" -extensions req_ext >/dev/null 2>&1 || {
+		warn "Failed to generate self-signed certificate for $HOSTNAME"
+		rm -f "$TMPCONF" || true
+		return 1
+	}
+
+	chmod 640 "$KEY_FILE" || true
+	chmod 644 "$CRT_FILE" || true
+	rm -f "$TMPCONF" || true
+	echo "Generated self-signed cert: $CRT_FILE"
+	return 0
 }
 
 get_caddy_latest_tag() {
@@ -344,6 +411,8 @@ download_vendor_assets() {
 
 download_remote_pmtiles() {
 	echo "Attempting to download pre-extracted PMTiles from tunnel.optgeo.org (if available)..."
+	failed_tmp="/tmp/hitch_failed_pmtiles.$$"
+	: > "$failed_tmp" || true
 	for f in protomaps-sl.pmtiles mapterhorn-sl.pmtiles; do
 		url="https://tunnel.optgeo.org/${f}"
 		out="$PMTILES_DIR/${f}"
@@ -355,16 +424,28 @@ download_remote_pmtiles() {
 
 		# Light reachability check (HEAD).
 		if ! curl -fsI "$url" >/dev/null 2>&1; then
-			echo "Notice: ${url} not reachable; skipping ${f}"
+			warn "${url} not reachable; skipping ${f}"
+			printf '%s\n' "$url" >> "$failed_tmp" || true
 			continue
 		fi
 
 		# Use the shared download helper (respects HITCHHIKER_PROGRESS)
 		if download_file "$url" "$out"; then
 			:
+		else
+			warn "download failed for ${url}";
+			printf '%s\n' "$url" >> "$failed_tmp" || true
 		fi
 
 		done
+
+	# Print a concise summary of any failures so the user can inspect which URLs failed.
+	if [ -s "$failed_tmp" ]; then
+		echo "\nThe following PMTiles URLs failed to download or were unreachable:"
+		sort -u "$failed_tmp" | sed 's/^/ - /'
+		echo "\nIf these are expected, place the corresponding .pmtiles under $PMTILES_DIR manually." >&2
+	fi
+	rm -f "$failed_tmp" || true
 
 }
 download_protomaps_style() {
@@ -541,13 +622,29 @@ EOF
 	# Write (or overwrite) the Hitchhiker site snippet. TLS is enabled only
 	# when the user explicitly provided HITCHHIKER_HOST (ENABLE_TLS=1).
 	if [ "$ENABLE_TLS" -eq 1 ]; then
-		cat > "$CADDY_SNIPPET_FILE" <<EOF
+		# If user requested self-signed certs, generate and use them
+		if [ "${HITCHHIKER_SELF_SIGN:-}" = "1" ]; then
+			generate_self_signed_cert "$HOST" || true
+			CRT_FILE="/etc/caddy/ssl/${HOST}.crt"
+			KEY_FILE="/etc/caddy/ssl/${HOST}.key"
+			cat > "$CADDY_SNIPPET_FILE" <<EOF
+$HOST {
+	root * $SITE_ROOT
+	tls $CRT_FILE $KEY_FILE
+	file_server
+}
+EOF
+			echo "Configured Caddy site for host: $HOST using self-signed cert (TLS enabled)."
+			echo "Tip: import /etc/caddy/ssl/${HOST}.crt into client devices to trust this certificate."
+		else
+			cat > "$CADDY_SNIPPET_FILE" <<EOF
 $HOST {
 	root * $SITE_ROOT
 	file_server
-	}
+}
 EOF
-		echo "Configured Caddy site for host: $HOST (Caddy will attempt automatic HTTPS)."
+			echo "Configured Caddy site for host: $HOST (Caddy will attempt automatic HTTPS)."
+		fi
 	else
 		cat > "$CADDY_SNIPPET_FILE" <<EOF
 :80 {
