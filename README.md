@@ -34,9 +34,20 @@ Notes:
 - `sudo` is required.
 - If you do not trust pipe-to-shell, inspect first:
 
-```sh
+ download pre-extracted PMTiles into `/var/www/hitchhiker/pmtiles/` (if found at the example tunnel URLs),
 curl -fsSL https://unvt.github.io/hitchhiker/install.sh | less
 ```
+
+## Terrain / DEM requirements
+
+If you enable terrain (3D elevation) in the shipped style, follow these requirements so MapLibre can consume the DEM correctly:
+
+- **PMTiles file location:** the default style expects a DEM PMTiles named `mapterhorn-sl.pmtiles` served from `/pmtiles/` on the device. The installer will attempt to download example files into `/var/www/hitchhiker/pmtiles/` if they are available on the configured tunnel host.
+- **Encoding:** DEM tiles must use the *terrarium* encoding (the style sets `encoding: "terrarium"`).
+- **Tile size:** the style is configured for 512px tiles (`"tileSize": 512`); your PMTiles must contain 512px terrarium tiles or MapLibre will misinterpret elevation values.
+- **Max zoom:** the style limits DEM requests to `maxzoom: 13` to avoid requesting very high-resolution elevation tiles. Only increase this if your PMTiles include higher zoom levels and you accept the storage and bandwidth costs.
+
+Ensure your PMTiles generation/extraction workflow produces 512px terrarium PNG tiles up to the desired zoom. If you require reproducible installer behavior, pin vendor versions as noted in the "MapLibre GL JS and pmtiles.js (How We Fetch \"Latest\")" section.
 
 ## Uninstall
 
