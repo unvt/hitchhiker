@@ -270,8 +270,10 @@ download_remote_pmtiles() {
 			echo "Notice: failed to download ${url}; skipping ${f}"
 			rm -f "$out" || true
 		fi
-}
 
+		done
+
+}
 download_protomaps_style() {
 	# Place offline style and minimal assets under the site root so the device can operate offline.
 	STYLE_DIR="$SITE_ROOT/style/protomaps-light"
