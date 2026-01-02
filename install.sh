@@ -227,7 +227,20 @@ ensure_site_root() {
 HTML
 	fi
 
-	chmod 755 "$SITE_ROOT" "$VENDOR_DIR" "$PMTILES_DIR" || true
+	# Ensure ownership and permissions suitable for a webserver user.
+	# Prefer the 'caddy' group (used by the Caddy package); fall back to 'www-data' or root.
+	if getent group caddy >/dev/null 2>&1; then
+		WEBGROUP=caddy
+	elif getent group www-data >/dev/null 2>&1; then
+		WEBGROUP=www-data
+	else
+		WEBGROUP=root
+	fi
+
+	# Make root the owner and the chosen web group the group owner so Caddy can read files.
+	chown -R root:"$WEBGROUP" "$SITE_ROOT" || true
+
+	# Standard static-site permissions: dirs 755, files 644.
 	find "$SITE_ROOT" -type d -exec chmod 755 {} \; || true
 	find "$SITE_ROOT" -type f -exec chmod 644 {} \; || true
 }
