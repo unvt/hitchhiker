@@ -189,14 +189,52 @@ download_remote_pmtiles() {
 	for f in protomaps-sl.pmtiles mapterhorn-sl.pmtiles; do
 		url="https://tunnel.optgeo.org/${f}"
 		out="$PMTILES_DIR/${f}"
+		# Skip download if file already exists to save bandwidth; remove this file to force re-download.
+		if [ -f "$out" ]; then
+			echo "Found existing ${f}; skipping download. Remove it to re-download."
+			continue
+		fi
+
+		# Light reachability check (HEAD).
+		if ! curl -fsI "$url" >/dev/null 2>&1; then
+			echo "Notice: ${url} not reachable; skipping ${f}"
+			continue
+		fi
+
 		if curl -fsSL "$url" -o "$out"; then
 			chmod 644 "$out" || true
 			echo "Downloaded ${f}"
 		else
-			echo "Notice: ${url} not available; skipping ${f}"
+			echo "Notice: failed to download ${url}; skipping ${f}"
 			rm -f "$out" || true
 		fi
+}
+
+download_protomaps_style() {
+	# Place offline style and minimal assets under the site root so the device can operate offline.
+	STYLE_DIR="$SITE_ROOT/style/protomaps-light"
+	mkdir -p "$STYLE_DIR"
+
+	# If a packaged style exists in the repo, copy it; otherwise attempt to download a canonical one.
+	if [ -f "$(pwd)/style/protomaps-light-style.json" ]; then
+		cp "$(pwd)/style/protomaps-light-style.json" "$STYLE_DIR/style.json" || true
+		chmod 644 "$STYLE_DIR/style.json" || true
+		echo "Installed local protomaps light style to $STYLE_DIR/style.json"
+		return 0
+	fi
+
+	# Fallback: try to download a style (best-effort).
+	STYLE_URLS=
+	STYLE_URLS="https://raw.githubusercontent.com/protomaps/basemaps-flavors/main/light/style.json https://maps.protomaps.com/styles/light.json"
+	for u in $STYLE_URLS; do
+		if curl -fsSL "$u" -o "$STYLE_DIR/style.json"; then
+			chmod 644 "$STYLE_DIR/style.json" || true
+			echo "Downloaded style.json from $u"
+			return 0
+		fi
 	done
+
+	echo "Notice: could not obtain a protomaps light style.json; using bundled minimal style if present."
 }
 
 ensure_caddy_config() {
@@ -265,6 +303,7 @@ main() {
 	ensure_site_root
 	download_vendor_assets
 	download_remote_pmtiles
+	download_protomaps_style
 	ensure_caddy_config
 
 	echo "Done. Try: http://$(hostname -I 2>/dev/null | awk '{print $1}')/"

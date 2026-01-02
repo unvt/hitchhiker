@@ -126,6 +126,17 @@ Notes:
 - Adjust the source URLs if you maintain your own mirror or use a different daily-build endpoint.
 - The repository `.gitignore` is configured to exclude `extracts/*.pmtiles` to avoid checking large binary files into Git.
 
+Offline style and assets
+------------------------
+
+The installer also attempts to install a local style and assets so the device can render maps offline. During `install.sh` the installer will:
+
+- download pre-extracted PMTiles into `/var/www/hitchhiker/pmtiles/` (if found at the example tunnel URLs),
+- install a local Protomaps "light" style into `/var/www/hitchhiker/style/protomaps-light/style.json` (prefers a bundled file in the repo), and
+- leave sprites/glyphs references in the style.json pointing to local paths so the device does not require network access at runtime.
+
+The included `style/protomaps-light-style.json` is a minimal, offline-friendly style that references the local `protomaps-sl.pmtiles` and `mapterhorn-sl.pmtiles` files. You can customize or replace it with a fuller Protomaps flavor before running the installer.
+
 Caddy configuration strategy (conservative + uninstallable):
 - A site snippet is written to `/etc/caddy/Caddyfile.d/hitchhiker.caddy`
 - The main `/etc/caddy/Caddyfile` is updated only to add an `import Caddyfile.d/*.caddy` line if it is missing
