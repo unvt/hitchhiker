@@ -238,7 +238,13 @@ HTML
 	fi
 
 	# Make root the owner and the chosen web group the group owner so Caddy can read files.
-	chown -R root:"$WEBGROUP" "$SITE_ROOT" || true
+	# Prefer making the local user 'hitchhiker' the owner so the device admin can edit files
+	if id -u hitchhiker >/dev/null 2>&1; then
+		SITE_OWNER=hitchhiker
+	else
+		SITE_OWNER=root
+	fi
+	chown -R "$SITE_OWNER":"$WEBGROUP" "$SITE_ROOT" || true
 
 	# Standard static-site permissions: dirs 755, files 644.
 	find "$SITE_ROOT" -type d -exec chmod 755 {} \; || true
