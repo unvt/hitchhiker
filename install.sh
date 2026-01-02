@@ -185,26 +185,20 @@ ensure_site_root() {
 			// Register pmtiles protocol per MapLibre example:
 			// const protocol = new pmtiles.Protocol();
 			// maplibregl.addProtocol('pmtiles', protocol.tile);
-			try {
-				const PM = window.pmtiles || window.PMTiles || null;
-				if (PM && typeof PM.Protocol === 'function') {
-					try {
-						const protocol = new PM.Protocol();
-						if (window.maplibregl && typeof maplibregl.addProtocol === 'function') {
-							maplibregl.addProtocol('pmtiles', protocol.tile);
-							console.log('pmtiles protocol registered via maplibregl.addProtocol');
-						} else {
-							console.warn('maplibregl.addProtocol not available; pmtiles:// may not be supported');
-						}
-					} catch (e) {
-						console.warn('Failed to instantiate pmtiles Protocol', e);
-					}
-				} else {
-					console.warn('pmtiles plugin not found or Protocol constructor missing; pmtiles:// unsupported');
-				}
-			} catch (e) {
-				console.warn('pmtiles protocol registration failed (non-fatal)', e);
+			// PMTiles registration must succeed — fail loudly if not available.
+			const PM = window.pmtiles || window.PMTiles;
+			if (!PM || typeof PM.Protocol !== 'function') {
+				console.error('FATAL: PMTiles plugin not found or Protocol constructor missing; cannot continue.');
+				return; // stop initialization
 			}
+			// Instantiate protocol and register; allow exceptions to surface (fatal)
+			const protocol = new PM.Protocol();
+			if (!window.maplibregl || typeof maplibregl.addProtocol !== 'function') {
+				console.error('FATAL: maplibregl.addProtocol not available; cannot register pmtiles protocol.');
+				return;
+			}
+			maplibregl.addProtocol('pmtiles', protocol.tile);
+			console.log('pmtiles protocol registered via maplibregl.addProtocol');
 
 			// Load the offline style (bundled by installer) with improved diagnostics.
 			let style = null;
@@ -403,6 +397,40 @@ download_style_assets() {
 	chmod -R 644 "$STYLE_DIR" || true
 }
 
+finalize_site_permissions() {
+	# Recompute preferred owner/group (in case files were created after initial chown)
+	if getent group caddy >/dev/null 2>&1; then
+		WEBGROUP=caddy
+	elif getent group www-data >/dev/null 2>&1; then
+		WEBGROUP=www-data
+	else
+		WEBGROUP=root
+	fi
+
+	if id -u hitchhiker >/dev/null 2>&1; then
+		SITE_OWNER=hitchhiker
+	else
+		SITE_OWNER=root
+	fi
+
+	echo "Applying final ownership: $SITE_OWNER:$WEBGROUP and standard perms under $SITE_ROOT"
+	chown -R "$SITE_OWNER":"$WEBGROUP" "$SITE_ROOT" || true
+
+	# Dirs 755, files 644, ensure pmtiles and vendor dirs readable by web group
+	find "$SITE_ROOT" -type d -exec chmod 755 {} \; || true
+	find "$SITE_ROOT" -type f -exec chmod 644 {} \; || true
+
+	# Ensure pmtiles files are readable by group (some systems respect ACLs differently)
+	if [ -d "$PMTILES_DIR" ]; then
+		find "$PMTILES_DIR" -type f -exec chmod 644 {} \; || true
+	fi
+
+	# Ensure vendor JS/CSS are readable
+	if [ -d "$VENDOR_DIR" ]; then
+		find "$VENDOR_DIR" -type f -exec chmod 644 {} \; || true
+	fi
+}
+
 ensure_caddy_config() {
 	mkdir -p "$CADDY_SNIPPET_DIR"
 
@@ -471,6 +499,8 @@ main() {
 	download_remote_pmtiles
 	download_protomaps_style
 	download_style_assets
+	# Ensure final ownership/permissions after downloads to avoid manual fixes
+	finalize_site_permissions
 	ensure_caddy_config
 	# Best-effort verification that the site serves assets and pmtiles.js
 	verify_pmtiles_protocol
