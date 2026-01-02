@@ -223,6 +223,8 @@ ensure_site_root() {
 			}
 
 			// Create the map with the loaded style.
+			// Ensure MapLibre's worker is pointed at the CSP worker we bundled.
+			maplibregl.workerUrl = '/vendor/maplibre/maplibre-gl-csp-worker.js';
 			const map = new maplibregl.Map({
 				container: 'map',
 				style: style,
