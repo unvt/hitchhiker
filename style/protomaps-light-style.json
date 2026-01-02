@@ -6,28 +6,49 @@
       "type": "vector",
       "url": "pmtiles://pmtiles/protomaps-sl.pmtiles"
     },
-    "mapterhorn-hillshade": {
-      "type": "raster",
+    "mapterhorn-dem": {
+      "type": "raster-dem",
       "tiles": ["/pmtiles/mapterhorn-sl.pmtiles"],
       "tileSize": 256
     }
   },
+  "light": {
+    "anchor": "viewport",
+    "color": "#ffffff",
+    "intensity": 0.65,
+    "position": [1.15, 210, 30]
+  },
   "layers": [
     {
       "id": "hillshade",
-      "type": "raster",
-      "source": "mapterhorn-hillshade",
+      "type": "hillshade",
+      "source": "mapterhorn-dem",
       "paint": {
-        "raster-opacity": 0.7
+        "hillshade-exaggeration": 0.9,
+        "hillshade-shadow-color": "#000000",
+        "hillshade-highlight-color": "#ffffff",
+        "hillshade-accent-color": "#888888"
       }
     },
     {
-      "id": "protomaps-fill",
+      "id": "protomaps-land",
       "type": "fill",
       "source": "protomaps",
-      "source-layer": "land", 
+      "source-layer": "land",
       "paint": {
         "fill-color": "#f8f4ee"
+      }
+    },
+    {
+      "id": "buildings-extrusion",
+      "type": "fill-extrusion",
+      "source": "protomaps",
+      "source-layer": "building",
+      "paint": {
+        "fill-extrusion-color": "#d9d9d9",
+        "fill-extrusion-height": ["coalesce", ["get", "height"], ["get", "render_height"], 0],
+        "fill-extrusion-base": ["coalesce", ["get", "min_height"], 0],
+        "fill-extrusion-opacity": 0.9
       }
     }
   ]

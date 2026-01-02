@@ -117,49 +117,68 @@ ensure_site_root() {
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>UNVT Hitchhiker</title>
-  <link rel="stylesheet" href="/vendor/maplibre/maplibre-gl.css" />
-  <style>
-    html, body, #map { height: 100%; margin: 0; }
-    #banner { position: absolute; top: 0; left: 0; right: 0; z-index: 1; padding: 8px 10px; background: rgba(255,255,255,0.9); font: 14px/1.3 system-ui, -apple-system, sans-serif; }
-    #map { position: absolute; top: 0; left: 0; right: 0; bottom: 0; }
-  </style>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>UNVT Hitchhiker — Offline Map</title>
+	<link rel="stylesheet" href="/vendor/maplibre/maplibre-gl.css" />
+	<style>
+		html, body, #map { height: 100%; margin: 0; }
+		#banner { position: absolute; top: 0; left: 0; right: 0; z-index: 2; padding: 8px 10px; background: rgba(255,255,255,0.9); font: 14px/1.3 system-ui, -apple-system, sans-serif; }
+		#map { position: absolute; top: 0; left: 0; right: 0; bottom: 0; }
+		.notice { font-size: 12px; color: #444; }
+	</style>
 </head>
 <body>
-  <div id="banner">
-    <strong>UNVT Hitchhiker</strong> — edit <code>/var/www/hitchhiker/index.html</code> and drop PMTiles into <code>/var/www/hitchhiker/pmtiles/</code>.
-  </div>
-  <div id="map"></div>
+	<div id="banner">
+		<strong>UNVT Hitchhiker</strong> — Offline map using local PMTiles.
+		<div class="notice">Edit /var/www/hitchhiker/style/protomaps-light/style.json to customize.</div>
+	</div>
+	<div id="map"></div>
 
-  <script src="/vendor/maplibre/maplibre-gl-csp.js"></script>
-  <script src="/vendor/pmtiles/pmtiles.js"></script>
-  <script>
-    // Minimal, data-agnostic example map.
-    // Replace this with your own style + sources.
-    const map = new maplibregl.Map({
-      container: 'map',
-      style: {
-        version: 8,
-        sources: {
-          osm: {
-            type: 'raster',
-            tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-            tileSize: 256,
-            attribution: '© OpenStreetMap contributors'
-          }
-        },
-        layers: [{ id: 'osm', type: 'raster', source: 'osm' }]
-      },
-      center: [0, 0],
-      zoom: 1
-    });
-    map.addControl(new maplibregl.NavigationControl());
+	<script src="/vendor/maplibre/maplibre-gl-csp.js"></script>
+	<script src="/vendor/pmtiles/pmtiles.js"></script>
+	<script>
+		(async function() {
+			// Best-effort: register pmtiles protocol with MapLibre if the plugin exposes a register function.
+			try {
+				if (window.pmtiles && pmtiles.maplibre && typeof pmtiles.maplibre.register === 'function') {
+					pmtiles.maplibre.register(pmtiles);
+					console.log('pmtiles.maplibre registered');
+				} else if (window.pmtiles && typeof pmtiles.registerProtocol === 'function') {
+					pmtiles.registerProtocol();
+					console.log('pmtiles.registerProtocol called');
+				}
+			} catch (e) {
+				console.warn('pmtiles protocol registration failed (non-fatal)', e);
+			}
 
-    // Hint: pmtiles.js is available globally as `pmtiles`.
-    // See https://github.com/protomaps/PMTiles for usage.
-  </script>
+			// Load the offline style (bundled by installer)
+			let style = null;
+			try {
+				style = await (await fetch('/style/protomaps-light/style.json')).json();
+			} catch (e) {
+				console.error('Failed to load style.json:', e);
+				style = {
+					version: 8,
+					sources: {},
+					layers: []
+				};
+			}
+
+			// Create the map with the loaded style.
+			const map = new maplibregl.Map({
+				container: 'map',
+				style: style,
+				center: [-11.5, 8.5],
+				zoom: 7
+			});
+			map.addControl(new maplibregl.NavigationControl());
+
+			// If you want to add 3D lighting or hillshade, extend the style.json with
+			// sources referencing /pmtiles/mapterhorn-sl.pmtiles and vector layers from protomaps.
+			// The installer places the style under /style/protomaps-light/style.json.
+		})();
+	</script>
 </body>
 </html>
 HTML
@@ -237,6 +256,53 @@ download_protomaps_style() {
 	echo "Notice: could not obtain a protomaps light style.json; using bundled minimal style if present."
 }
 
+download_style_assets() {
+	echo "Installing style assets (sprites & glyphs)..."
+	STYLE_DIR="$SITE_ROOT/style/protomaps-light"
+	mkdir -p "$STYLE_DIR/sprites" "$STYLE_DIR/glyphs"
+
+	# If repository includes packaged sprites, prefer those.
+	if [ -f "$(pwd)/style/protomaps-sprite.json" ] && [ -f "$(pwd)/style/protomaps-sprite.png" ]; then
+		cp "$(pwd)/style/protomaps-sprite.json" "$STYLE_DIR/sprites/sprite.json" || true
+		cp "$(pwd)/style/protomaps-sprite.png" "$STYLE_DIR/sprites/sprite.png" || true
+		echo "Installed packaged sprites to $STYLE_DIR/sprites/"
+	fi
+
+	# Attempt to discover a "sprite" entry in the installed style.json and download it if remote.
+	if [ -f "$STYLE_DIR/style.json" ]; then
+		sprite_url=$(sed -n 's/.*"sprite"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$STYLE_DIR/style.json" | head -n1 || true)
+		if [ -n "$sprite_url" ]; then
+			case "$sprite_url" in
+				http*)
+					if curl -fsSL "${sprite_url}.json" -o "$STYLE_DIR/sprites/sprite.json"; then
+						curl -fsSL "${sprite_url}.png" -o "$STYLE_DIR/sprites/sprite.png" || true
+						echo "Downloaded sprites from $sprite_url"
+					fi
+					;;
+				/*)
+					echo "Sprite referenced as local path; ensure files exist under $STYLE_DIR"
+					;;
+			esac
+		fi
+
+		# Inspect glyphs configuration -- prefetching all ranges is expensive; only warn.
+		glyphs_url=$(sed -n 's/.*"glyphs"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$STYLE_DIR/style.json" | head -n1 || true)
+		if [ -n "$glyphs_url" ]; then
+			case "$glyphs_url" in
+				http*)
+					echo "Notice: style requests remote glyphs ($glyphs_url). Installer will not prefetch all ranges." >&2
+					echo "Tip: add pre-generated glyph PBFs under $STYLE_DIR/glyphs/ if you need fully-offline fonts." >&2
+					;;
+				/*)
+					echo "Glyphs reference local path; ensure PBF ranges exist under $glyphs_url"
+					;;
+			esac
+		fi
+	fi
+
+	chmod -R 644 "$STYLE_DIR" || true
+}
+
 ensure_caddy_config() {
 	mkdir -p "$CADDY_SNIPPET_DIR"
 
@@ -250,6 +316,49 @@ ensure_caddy_config() {
 		cat > "$CADDYFILE" <<'EOF'
 {
 	# Global options
+}
+
+verify_pmtiles_protocol() {
+	echo "Verifying local HTTP server and PMTiles assets (best-effort)"
+	if ! command -v curl >/dev/null 2>&1; then
+		echo "Notice: curl not available; skipping verification"
+		return 0
+	fi
+
+	# Check local HTTP server
+	if ! curl -fsS http://127.0.0.1/ >/dev/null 2>&1; then
+		echo "Warning: local HTTP server did not respond at http://127.0.0.1/." >&2
+		echo "If Caddy is not running, start it (systemctl start caddy) or inspect /var/log/syslog." >&2
+		return 0
+	fi
+
+	# Fetch vendor pmtiles.js via HTTP and look for expected hints
+	if [ -f "$VENDOR_DIR/pmtiles/pmtiles.js" ]; then
+		tmpf="/tmp/hitch_pmtiles.js"
+		if curl -fsS http://127.0.0.1/vendor/pmtiles/pmtiles.js -o "$tmpf"; then
+			if grep -qE 'maplibre|registerProtocol|pmtiles' "$tmpf"; then
+				echo "pmtiles.js served and contains MapLibre/pmtiles integration hints"
+			else
+				echo "Notice: pmtiles.js served but did not contain expected keywords; it may be a different build"
+			fi
+			rm -f "$tmpf" || true
+		else
+			echo "Warning: failed to fetch /vendor/pmtiles/pmtiles.js from local server" >&2
+		fi
+	else
+		echo "Notice: $VENDOR_DIR/pmtiles/pmtiles.js not present on disk; vendor download may have failed" >&2
+	fi
+
+	# Verify that any downloaded PMTiles are being served
+	for f in protomaps-sl.pmtiles mapterhorn-sl.pmtiles; do
+		if [ -f "$PMTILES_DIR/$f" ]; then
+			if curl -fsI "http://127.0.0.1/pmtiles/$f" >/dev/null 2>&1; then
+				echo "PMTiles $f is accessible at /pmtiles/$f"
+			else
+				echo "Warning: $f exists on disk but is not accessible at /pmtiles/$f" >&2
+			fi
+		fi
+	done
 }
 
 import Caddyfile.d/*.caddy
@@ -304,7 +413,10 @@ main() {
 	download_vendor_assets
 	download_remote_pmtiles
 	download_protomaps_style
+	download_style_assets
 	ensure_caddy_config
+	# Best-effort verification that the site serves assets and pmtiles.js
+	verify_pmtiles_protocol
 
 	echo "Done. Try: http://$(hostname -I 2>/dev/null | awk '{print $1}')/"
 }

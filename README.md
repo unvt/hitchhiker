@@ -137,6 +137,24 @@ The installer also attempts to install a local style and assets so the device ca
 
 The included `style/protomaps-light-style.json` is a minimal, offline-friendly style that references the local `protomaps-sl.pmtiles` and `mapterhorn-sl.pmtiles` files. You can customize or replace it with a fuller Protomaps flavor before running the installer.
 
+Verification & quick tests
+-------------------------
+
+After running `install.sh`, verify the site and assets with these best-effort checks (run on the device, or from a host that can reach it):
+
+```sh
+# Replace <IP> with the device IP shown by the installer, or use 127.0.0.1 on-device.
+curl -fsS http://<IP>/ | sed -n '1,20p'
+curl -fsI http://<IP>/vendor/pmtiles/pmtiles.js
+curl -fsI http://<IP>/pmtiles/protomaps-sl.pmtiles
+curl -fsI http://<IP>/pmtiles/mapterhorn-sl.pmtiles
+# If Caddy appears down, restart and view logs:
+sudo systemctl restart caddy
+sudo journalctl -u caddy --no-pager -n 50
+```
+
+Open a browser to `http://<IP>/` to confirm the map loads. If the default style.json is missing assets, edit `/var/www/hitchhiker/style/protomaps-light/style.json` to point to locally-installed sprites/glyphs.
+
 Caddy configuration strategy (conservative + uninstallable):
 - A site snippet is written to `/etc/caddy/Caddyfile.d/hitchhiker.caddy`
 - The main `/etc/caddy/Caddyfile` is updated only to add an `import Caddyfile.d/*.caddy` line if it is missing
