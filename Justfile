@@ -28,15 +28,15 @@ tunnel_setup:
 	@bash -c 'TUNNEL_ID=$$(cloudflared tunnel list | grep "{{TUNNEL_NAME}}" | awk "{print \$$1}" | head -n1); \
 		if [ -z "$$TUNNEL_ID" ]; then echo "ERROR: Could not find tunnel ID"; exit 1; fi; \
 		mkdir -p {{CLOUDFLARE_CREDS_DIR}}; \
-		cat > {{CLOUDFLARE_CREDS_DIR}}/config.yml <<"EOF"
-tunnel: $TUNNEL_ID
-credentials-file: {{CLOUDFLARE_CREDS_DIR}}/$TUNNEL_ID.json
-
-
-  - hostname: hitchhiker.optgeo.org
-    service: http://localhost:80
-  - service: http_status:404
-EOF
+		printf "%s\n" \
+		  "tunnel: $$TUNNEL_ID" \
+		  "credentials-file: {{CLOUDFLARE_CREDS_DIR}}/$$TUNNEL_ID.json" \
+		  "" \
+		  "ingress:" \
+		  "  - hostname: hitchhiker.optgeo.org" \
+		  "    service: http://localhost:80" \
+		  "  - service: http_status:404" \
+		  > {{CLOUDFLARE_CREDS_DIR}}/config.yml; \
 		echo "config.yml created at {{CLOUDFLARE_CREDS_DIR}}/config.yml"; \
 		echo ""; \
 		echo "Tunnel ID: $$TUNNEL_ID"; \
