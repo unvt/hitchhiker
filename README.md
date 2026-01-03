@@ -352,6 +352,7 @@ curl -fsS http://<IP>/ | sed -n '1,20p'
 curl -fsI http://<IP>/vendor/pmtiles/pmtiles.js
 curl -fsI http://<IP>/pmtiles/protomaps-sl.pmtiles
 curl -fsI http://<IP>/pmtiles/mapterhorn-sl.pmtiles
+curl -fsI http://<IP>/pmtiles/maxar-2020-freetown.pmtiles
 curl -fsI http://<IP>/pmtiles/freetown_2025-10-22_nearest.pmtiles
 # If Caddy appears down, restart and view logs:
 sudo systemctl restart caddy
