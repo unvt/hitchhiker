@@ -27,6 +27,7 @@ This repository is intentionally simple:
 - [Adding Your PMTiles](#adding-your-pmtiles)
 - [Architecture & Philosophy](#architecture--philosophy-distributed-and-forward-deployed-web-maps)
 - [Relationship to UNVT Portable](#relationship-to-unvt-portable)
+- [Acknowledgments](#acknowledgments)
 - [License](#license)
 ## Status
 
@@ -430,6 +431,34 @@ It intentionally does not:
 - Run its own access point
 - Provide heavyweight GIS backends
 - Target high-availability production deployments
+
+## Acknowledgments
+
+This project is built on the shoulders of many open-source and open-data initiatives:
+
+### Map Data and Tiles
+
+- **[Protomaps Basemaps](https://github.com/protomaps/basemaps)** - Vector basemap tiles derived from [OpenStreetMap](https://www.openstreetmap.org/) data. © OpenStreetMap contributors. Map data licensed under [ODbL](https://opendatacommons.org/licenses/odbl/).
+
+- **[Mapterhorn](https://mapterhorn.com/)** - Open terrain tiles project by [Leichter als Luft GmbH](https://leichteralsluft.ch/). Made possible through support from the NGI0 Core Fund, established by [NLnet](https://nlnet.nl/) with financial support from the European Commission's [Next Generation Internet](https://ngi.eu/) programme. Terrain data sources are documented at [mapterhorn.com/attribution](https://mapterhorn.com/attribution). Code: BSD-3 License.
+
+- **[OpenAerialMap](https://openaerialmap.org/)** - Freetown high-resolution imagery (2025-10-22, 4cm resolution) provided by [DroneTM](https://dronetm.com/) via OpenAerialMap. Captured with DJI Mini 4 Pro. Licensed under [CC-BY 4.0](https://creativecommons.org/licenses/by/4.0/). Made with ♥ by [HOT](https://www.hotosm.org/) partners and community.
+
+### Software and Libraries
+
+- **[MapLibre GL JS](https://maplibre.org/)** - Open-source map rendering library (BSD-3 License)
+- **[PMTiles](https://github.com/protomaps/PMTiles)** - Cloud-optimized tile archive format by Protomaps (BSD-3 License)
+- **[Caddy](https://caddyserver.com/)** - Modern web server with automatic HTTPS (Apache 2.0 License)
+- **[Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/get-started/)** (cloudflared) - Secure tunnel service for internet exposure
+- **[just](https://github.com/casey/just)** - Command runner for task automation (CC0 License)
+
+### Data Hosting
+
+- **tunnel.optgeo.org** - Tile hosting and distribution infrastructure provided by optgeo for example deployments and testing
+
+### Foundation
+
+Built on Debian-based [Raspberry Pi OS](https://www.raspberrypi.com/software/) for low-power, forward-deployed mapping infrastructure.
 
 ## License
 

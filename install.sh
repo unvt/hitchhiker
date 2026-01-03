@@ -151,9 +151,10 @@ ensure_cloudflared_if_requested() {
 	
 	echo "Installing cloudflared for Cloudflare Tunnel support..."
 	if ! command -v cloudflared >/dev/null 2>&1; then
-		# Add Cloudflare's Debian repository
-		curl -fsSL https://pkg.cloudflare.com/cloudflare-main.gpg | gpg --dearmor -o /usr/share/keyrings/cloudflare-archive-keyring.gpg || true
-		echo "deb [signed-by=/usr/share/keyrings/cloudflare-archive-keyring.gpg] https://pkg.cloudflare.com/linux any main" | tee /etc/apt/sources.list.d/cloudflare.list || true
+		# Add Cloudflare's Debian repository (updated 2025)
+		mkdir -p --mode=0755 /usr/share/keyrings
+		curl -fsSL https://pkg.cloudflare.com/cloudflare-main.gpg | tee /usr/share/keyrings/cloudflare-main.gpg >/dev/null || true
+		echo "deb [signed-by=/usr/share/keyrings/cloudflare-main.gpg] https://pkg.cloudflare.com/cloudflared any main" | tee /etc/apt/sources.list.d/cloudflared.list || true
 		apt-get update
 		apt-get install -y cloudflared || warn "cloudflared installation failed; tunnel features will be unavailable"
 	else
