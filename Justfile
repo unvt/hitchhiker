@@ -25,7 +25,8 @@ tunnel_setup:
 	@bash -lc 'cloudflared tunnel create {{TUNNEL_NAME}}' || echo "Tunnel may already exist."
 	@echo ""
 	@echo "Generating config.yml..."
-	@TUNNEL_ID=$$(cloudflared tunnel list | grep "{{TUNNEL_NAME}}" | awk '{print $$1}' | head -n1); \
+	@cloudflared --version >/dev/null 2>&1 || { echo "ERROR: cloudflared is not runnable on this CPU/OS. Reinstall with the correct architecture."; exit 1; }
+	@TUNNEL_ID=`cloudflared tunnel list 2>/dev/null | awk '$2=="{{TUNNEL_NAME}}" {print $1; exit}'`; \
 		if [ -z "$$TUNNEL_ID" ]; then echo "ERROR: Could not find tunnel ID"; exit 1; fi; \
 		mkdir -p {{CLOUDFLARE_CREDS_DIR}}; \
 		printf '%s\n' \
