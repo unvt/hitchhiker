@@ -442,7 +442,11 @@ This project is built on the shoulders of many open-source and open-data initiat
 
 - **[Mapterhorn](https://mapterhorn.com/)** - Open terrain tiles project by [Leichter als Luft GmbH](https://leichteralsluft.ch/). Made possible through support from the NGI0 Core Fund, established by [NLnet](https://nlnet.nl/) with financial support from the European Commission's [Next Generation Internet](https://ngi.eu/) programme. Terrain data sources are documented at [mapterhorn.com/attribution](https://mapterhorn.com/attribution). Code: BSD-3 License.
 
-- **[OpenAerialMap](https://openaerialmap.org/)** - Freetown high-resolution imagery (2025-10-22, 4cm resolution) provided by [DroneTM](https://dronetm.com/) via OpenAerialMap. Captured with DJI Mini 4 Pro. Licensed under [CC-BY 4.0](https://creativecommons.org/licenses/by/4.0/). Made with ♥ by [HOT](https://www.hotosm.org/) partners and community.
+- **[OpenAerialMap](https://openaerialmap.org/)** - Freetown high-resolution imagery provided via OpenAerialMap:
+  - **2025-10-22 Freetown Urban Imagery** (4cm resolution) - Provided by [DroneTM](https://dronetm.com/). Captured with DJI Mini 4 Pro. Licensed under [CC-BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+  - **2020-02-03 Maxar Freetown Mosaic** (30cm resolution) - Satellite imagery from [Maxar](https://www.maxar.com/). Licensed under [CC-BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/).
+  
+  Both available through [OpenAerialMap](https://openaerialmap.org/). Made with ♥ by [HOT](https://www.hotosm.org/) partners and community.
 
 ### Software and Libraries
 
