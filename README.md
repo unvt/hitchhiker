@@ -158,11 +158,10 @@ If you do not set `HITCHHIKER_HOST`, Hitchhiker remains an HTTP site on `:80` an
 
 Self-signed HTTPS (local testing)
 ---------------------------------
-
-GeoLocationやHTTPSは簡潔に：
-- GeoLocationは通常HTTPSまたはlocalhostのみ許可。簡易対応はSSHトンネルかCloudflare Tunnel。
-- 公開HTTPSを使う場合だけ `HITCHHIKER_HOST` を指定（DNSで到達可能であること）。
-- ローカル用途で自己署名が必要なら `HITCHHIKER_HOST=hitchhiker.local HITCHHIKER_SELF_SIGN=1 sudo sh install.sh`。ブラウザには手動で証明書を信頼させる。
+Keep GeoLocation/HTTPS guidance concise:
+- Browsers typically allow Geolocation only on HTTPS or localhost. Easiest workarounds: SSH tunnel or Cloudflare Tunnel.
+- Only set `HITCHHIKER_HOST` when you intend to serve public HTTPS and the hostname is DNS-resolvable to the device.
+- For local self-signed HTTPS (development), you can run `HITCHHIKER_HOST=hitchhiker.local HITCHHIKER_SELF_SIGN=1 sudo sh install.sh` and manually trust the cert in your browser.
 
 Cloudflare Tunnel (Internet Exposure via tunnel.optgeo.org)
 -----------------------------------------------------------
