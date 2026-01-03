@@ -29,8 +29,8 @@ tunnel_setup:
 		if [ -z "$$TUNNEL_ID" ]; then echo "ERROR: Could not find tunnel ID"; exit 1; fi; \
 		mkdir -p {{CLOUDFLARE_CREDS_DIR}}; \
 		cat > {{CLOUDFLARE_CREDS_DIR}}/config.yml <<"EOF"
-tunnel: $${TUNNEL_ID}
-credentials-file: {{CLOUDFLARE_CREDS_DIR}}/$${TUNNEL_ID}.json
+tunnel: $TUNNEL_ID
+credentials-file: {{CLOUDFLARE_CREDS_DIR}}/$TUNNEL_ID.json
 
 
   - hostname: hitchhiker.optgeo.org
