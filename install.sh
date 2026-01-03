@@ -23,6 +23,13 @@ download_file() {
 	url=$1
 	out=$2
 
+	# If file exists, use curl's -z option to only download if remote is newer
+	if [ -f "$out" ]; then
+		TIMESTAMP_OPT="-z $out"
+	else
+		TIMESTAMP_OPT=""
+	fi
+
 	case "${HITCHHIKER_PROGRESS:-auto}" in
 		always)
 			CURL_OPTS="-fSL -#"
@@ -39,7 +46,7 @@ download_file() {
 			;;
 	esac
 
-	if curl $CURL_OPTS -o "$out" "$url"; then
+	if curl $CURL_OPTS $TIMESTAMP_OPT -o "$out" "$url"; then
 		chmod 644 "$out" || true
 		info "Downloaded $(basename "$out")"
 		return 0
@@ -551,11 +558,6 @@ download_remote_pmtiles() {
 	for f in protomaps-sl.pmtiles mapterhorn-sl.pmtiles freetown_2025-10-22_nearest.pmtiles; do
 		url="https://tunnel.optgeo.org/${f}"
 		out="$PMTILES_DIR/${f}"
-		# Skip download if file already exists to save bandwidth; remove this file to force re-download.
-		if [ -f "$out" ]; then
-			echo "Found existing ${f}; skipping download. Remove it to re-download."
-			continue
-		fi
 
 		# Light reachability check (HEAD).
 		if ! curl -fsI "$url" >/dev/null 2>&1; then
@@ -564,7 +566,7 @@ download_remote_pmtiles() {
 			continue
 		fi
 
-		# Use the shared download helper (respects HITCHHIKER_PROGRESS)
+		# Use the shared download helper (respects HITCHHIKER_PROGRESS and uses -z for conditional download)
 		if download_file "$url" "$out"; then
 			:
 		else
