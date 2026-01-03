@@ -76,6 +76,13 @@ Document root:
     └── (your .pmtiles files)
 ```
 
+Server management:
+
+```
+/home/hitchhiker/
+├── Justfile          # Tasks for tunnel management, verification, and logs
+```
+
 Why `/var/www/hitchhiker`?
 - It matches common Debian conventions (and avoids inventing a new top-level under `/var`).
 
@@ -161,6 +168,7 @@ Hitchhiker can optionally expose your map server to the internet via Cloudflare 
 1. **First time only:** Create a tunnel identity and authenticate:
 
 ```sh
+cd /home/hitchhiker
 just tunnel_setup
 ```
 
@@ -172,6 +180,7 @@ This command will:
 2. **Start the tunnel (on-demand):**
 
 ```sh
+cd /home/hitchhiker
 just tunnel
 ```
 
@@ -180,7 +189,17 @@ This runs `cloudflared tunnel run hitchhiker` in the background, exposing your d
 3. **Stop the tunnel:**
 
 ```sh
+cd /home/hitchhiker
 just tunnel_stop
+```
+
+4. **View available tasks:**
+
+```sh
+cd /home/hitchhiker
+just
+# or
+just --list
 ```
 
 **Configuration:**

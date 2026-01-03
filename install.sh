@@ -140,7 +140,7 @@ ensure_packages() {
 	# We keep this conservative; Raspberry Pi OS is Debian-based.
 	export DEBIAN_FRONTEND=noninteractive
 	apt-get update
-	apt-get install -y ca-certificates curl openssl unzip
+	apt-get install -y ca-certificates curl openssl unzip just
 }
 
 ensure_cloudflared_if_requested() {
@@ -693,6 +693,24 @@ download_style_assets() {
 	chmod -R 644 "$STYLE_DIR" || true
 }
 
+download_justfile() {
+	echo "Downloading Justfile for server management tasks..."
+	JUSTFILE_URL="https://raw.githubusercontent.com/unvt/hitchhiker/main/Justfile"
+	JUSTFILE_PATH="/home/hitchhiker/Justfile"
+	
+	# Create /home/hitchhiker if it doesn't exist
+	mkdir -p /home/hitchhiker || err "Failed to create /home/hitchhiker"
+	
+	# Download the Justfile
+	if download_file "$JUSTFILE_URL" "$JUSTFILE_PATH"; then
+		chmod 644 "$JUSTFILE_PATH" || true
+		echo "Justfile installed at $JUSTFILE_PATH"
+		echo "Run 'just' or 'just --list' from /home/hitchhiker to see available tasks"
+	else
+		warn "Failed to download Justfile; tunnel features will not be available"
+	fi
+}
+
 finalize_site_permissions() {
 	# Recompute preferred owner/group (in case files were created after initial chown)
 	if getent group caddy >/dev/null 2>&1; then
@@ -843,6 +861,7 @@ main() {
 	download_remote_pmtiles
 	download_protomaps_style
 	download_style_assets
+	download_justfile
 	# Ensure final ownership/permissions after downloads to avoid manual fixes
 	finalize_site_permissions
 	ensure_caddy_config
@@ -850,6 +869,8 @@ main() {
 	verify_pmtiles_protocol
 
 	echo "Done. Try: http://$(hostname -I 2>/dev/null | awk '{print $1}')/"
+	echo ""
+	echo "To manage the tunnel, run: just -f /home/hitchhiker/Justfile"
 }
 
 main "$@"

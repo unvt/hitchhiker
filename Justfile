@@ -5,12 +5,17 @@
 TUNNEL_NAME := "hitchhiker"
 CLOUDFLARE_CREDS_DIR := "/root/.cloudflared"
 
-# Default target
-default:
+# Default target: display help
+default: help
+
+help:
 	@echo "UNVT Hitchhiker server tasks:"
 	@echo "  just tunnel_setup    - Authenticate with Cloudflare and create tunnel (first-time only)"
 	@echo "  just tunnel          - Start the Cloudflare Tunnel (on-demand)"
 	@echo "  just tunnel_stop     - Stop the Cloudflare Tunnel"
+	@echo "  just verify-local    - Verify local map server is running and assets are available"
+	@echo "  just logs-caddy      - View Caddy web server logs"
+	@echo "  just logs-tunnel     - View Cloudflare Tunnel logs (if running)"
 	@echo ""
 	@echo "Note: Requires root or sudo for tunnel operations."
 
