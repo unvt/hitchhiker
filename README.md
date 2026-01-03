@@ -34,7 +34,7 @@ Notes:
 - `sudo` is required.
 - If you do not trust pipe-to-shell, inspect first:
 
- download pre-extracted PMTiles into `/var/www/hitchhiker/pmtiles/` (if found at the example tunnel URLs),
+```sh
 curl -fsSL https://unvt.github.io/hitchhiker/install.sh | less
 ```
 
@@ -142,6 +142,58 @@ HITCHHIKER_HOST=hitchhiker.local HITCHHIKER_SELF_SIGN=1 sudo sh install.sh
 - You must import the `.crt` into the client device's trust store (browser/OS) to avoid security warnings and to allow `navigator.geolocation` to work. On macOS, double-click the `.crt` and add it to the System keychain, then mark it as trusted for SSL. On Android/iOS you can import the cert into the device's trust store (procedures differ by OS/version).
 - Note: self-signed certs are suitable for local testing and development. For public deployments prefer a real CA-signed certificate (set `HITCHHIKER_HOST` to a publicly resolvable name and allow Caddy to manage ACME certificates).
 
+Cloudflare Tunnel (Internet Exposure via tunnel.optgeo.org)
+-----------------------------------------------------------
+
+Hitchhiker can optionally expose your map server to the internet via Cloudflare Tunnel (`cloudflared`). This is useful for:
+- Sharing your maps with remote collaborators
+- Testing geolocation and HTTPS-dependent browser features
+- Accessing your device without port forwarding or DNS setup
+
+**How it works:**
+1. `cloudflared` creates an authenticated tunnel from your device to Cloudflare's edge network
+2. A public CNAME record (e.g., `hitchhiker.optgeo.org`) points to the tunnel
+3. Cloudflare handles HTTPS and certificate management automatically
+4. Your device remains offline-capable; the tunnel is optional and can be stopped at any time
+
+**Setup and usage:**
+
+1. **First time only:** Create a tunnel identity and authenticate:
+
+```sh
+just tunnel_setup
+```
+
+This command will:
+- Prompt you for your Cloudflare account credentials (or token)
+- Guide you through creating a tunnel named `hitchhiker`
+- Store the tunnel credentials in `/root/.cloudflared/` (persisted for future use)
+
+2. **Start the tunnel (on-demand):**
+
+```sh
+just tunnel
+```
+
+This runs `cloudflared tunnel run hitchhiker` in the background, exposing your device at the configured public URL.
+
+3. **Stop the tunnel:**
+
+```sh
+just tunnel_stop
+```
+
+**Configuration:**
+- Tunnel credentials are stored locally under `/root/.cloudflared/` and are persistent across reboots (if you set up systemd unit, see below).
+- The tunnel name is fixed as `hitchhiker` for simplicity.
+- You must configure a CNAME DNS record in your Cloudflare domain pointing to `<tunnel-id>.cfargotunnel.com` (guidance provided by `tunnel_setup`).
+
+**Important notes:**
+- The tunnel is **optional**: your device works perfectly offline even if you never set it up.
+- Tunneling adds a small latency (routing through Cloudflare edge), but is ideal for remote testing and collaboration.
+- For persistent, always-on tunneling, consider creating a systemd service. This is not configured by default to keep Hitchhiker simple.
+- If you need to revoke the tunnel, simply delete `/root/.cloudflared/` and create a new one via `tunnel_setup`.
+
 ## PMTiles Extraction & Upload (macOS host)
 
 If you want a small, device-friendly PMTiles file that covers Sierra Leone, perform the extraction on a more powerful machine (your macOS "mother ship") and upload the resulting files to a tunnel host so the Pi can download them during install.
@@ -175,8 +227,9 @@ After upload, example public URLs might be:
 
 - https://tunnel.optgeo.org/protomaps-sl.pmtiles
 - https://tunnel.optgeo.org/mapterhorn-sl.pmtiles
+- https://tunnel.optgeo.org/freetown_2025-10-22_nearest.pmtiles (optional high-resolution imagery layer)
 
-3. During `install.sh`, the installer will attempt to download those files into `/var/www/hitchhiker/pmtiles/` if they exist at the example URLs. This avoids heavy extraction on the Pi and keeps your microSD usage low.
+3. During `install.sh`, the installer will attempt to download those files into `/var/www/hitchhiker/pmtiles/` if they exist at the example URLs. This avoids heavy extraction on the Pi and keeps your microSD usage low. If a file is already present locally and the remote copy is not newer, the download is skipped (using `curl -z` timestamp comparison).
 
 Notes:
 - `--maxzoom=12` is a reasonable compromise for country-level extracts; each additional zoom level roughly doubles the file size. Reduce `--maxzoom` to save space.
@@ -189,10 +242,15 @@ Offline style and assets
 The installer also attempts to install a local style and assets so the device can render maps offline. During `install.sh` the installer will:
 
 - download pre-extracted PMTiles into `/var/www/hitchhiker/pmtiles/` (if found at the example tunnel URLs),
-- install a local Protomaps "light" style into `/var/www/hitchhiker/style/protomaps-light/style.json` (prefers a bundled file in the repo), and
+- install a local Protomaps "light" style with terrain and optional high-resolution imagery layers, and
 - leave sprites/glyphs references in the style.json pointing to local paths so the device does not require network access at runtime.
 
-The included `style/protomaps-light-style.json` is a minimal, offline-friendly style that references the local `protomaps-sl.pmtiles` and `mapterhorn-sl.pmtiles` files. You can customize or replace it with a fuller Protomaps flavor before running the installer.
+The included `style/protomaps-light-style.json` is an offline-friendly style that references:
+- `protomaps-sl.pmtiles` (vector basemap)
+- `mapterhorn-sl.pmtiles` (DEM raster with multidirectional hillshading)
+- `freetown_2025-10-22_nearest.pmtiles` (optional: high-resolution imagery layer, fades in at zoom 13-15 while hillshade fades out)
+
+You can customize or replace the style before running the installer.
 
 Verification & quick tests
 -------------------------
@@ -205,6 +263,7 @@ curl -fsS http://<IP>/ | sed -n '1,20p'
 curl -fsI http://<IP>/vendor/pmtiles/pmtiles.js
 curl -fsI http://<IP>/pmtiles/protomaps-sl.pmtiles
 curl -fsI http://<IP>/pmtiles/mapterhorn-sl.pmtiles
+curl -fsI http://<IP>/pmtiles/freetown_2025-10-22_nearest.pmtiles
 # If Caddy appears down, restart and view logs:
 sudo systemctl restart caddy
 sudo journalctl -u caddy --no-pager -n 50
@@ -249,6 +308,30 @@ Copy your `.pmtiles` into:
 ```
 
 The default `index.html` is a minimal template intended to be edited for your own style and data.
+
+## Architecture & Philosophy: Distributed and Forward-Deployed Web Maps
+
+UNVT Hitchhiker represents a pragmatic step forward in distributed geospatial data serving, combining three key principles:
+
+**1. Offline-first and local autonomy**
+- Web maps do not require a central server or constant internet connectivity.
+- All essential data (vector tiles, raster terrain, imagery, stylesheets, glyphs, sprites) are bundled and served locally.
+- A device can operate independently from the internet after installation, supporting disconnected or intermittent connectivity scenarios.
+
+**2. Low-power and low-footprint deployment**
+- Designed for Raspberry Pi Zero and similar single-board computers (not just cloud VMs).
+- No heavy GIS servers, databases, or processing pipelines.
+- Minimal dependencies: shell scripts, static web assets, and a lightweight HTTP server (Caddy).
+
+**3. Forward deployment (edge hosting)**
+- Web maps can be served from the field, car, boat, or disaster site without relying on infrastructure.
+- Data moves toward the edge rather than centralizing in a single cloud endpoint.
+- Supports peer-to-peer or broadcast scenarios where a single device shares data with multiple clients via a personal hotspot.
+
+**Why "Hitchhiker"?**
+Hitchhiker implies *traveling light* and *moving fast*. A single small device carries everything needed and can deploy its own map server anywhere with a power supply and optional internet access for setup. The map "hitches a ride" on your hotspot, making it available to any client on the network.
+
+This approach complements the UNVT Portable framework by enabling truly offline, low-power, and field-operable web map infrastructure.
 
 ## Relationship to UNVT Portable
 

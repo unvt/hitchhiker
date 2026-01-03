@@ -143,6 +143,24 @@ ensure_packages() {
 	apt-get install -y ca-certificates curl openssl unzip
 }
 
+ensure_cloudflared_if_requested() {
+	# Optional: install cloudflared for Cloudflare Tunnel support
+	if [ "${HITCHHIKER_CLOUDFLARE:-0}" != "1" ]; then
+		return 0
+	fi
+	
+	echo "Installing cloudflared for Cloudflare Tunnel support..."
+	if ! command -v cloudflared >/dev/null 2>&1; then
+		# Add Cloudflare's Debian repository
+		curl -fsSL https://pkg.cloudflare.com/cloudflare-main.gpg | gpg --dearmor -o /usr/share/keyrings/cloudflare-archive-keyring.gpg || true
+		echo "deb [signed-by=/usr/share/keyrings/cloudflare-archive-keyring.gpg] https://pkg.cloudflare.com/linux any main" | tee /etc/apt/sources.list.d/cloudflare.list || true
+		apt-get update
+		apt-get install -y cloudflared || warn "cloudflared installation failed; tunnel features will be unavailable"
+	else
+		echo "cloudflared already installed"
+	fi
+}
+
 install_basemaps_assets() {
 	# Installs sprites and glyphs from https://github.com/protomaps/basemaps-assets
 	# into the web root so the map can render fully offline.
@@ -818,6 +836,7 @@ main() {
 	ensure_packages
 	need_cmd curl
 	install_caddy_if_missing
+	ensure_cloudflared_if_requested
 	ensure_site_root
 	download_vendor_assets
 	install_basemaps_assets || true
