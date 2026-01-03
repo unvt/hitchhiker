@@ -25,33 +25,33 @@ tunnel_setup:
 	@bash -lc 'cloudflared tunnel create {{TUNNEL_NAME}}' || echo "Tunnel may already exist."
 	@echo ""
 	@echo "Generating config.yml..."
-	TUNNEL_ID := `cloudflared tunnel list | grep "{{TUNNEL_NAME}}" | awk '{print $1}' | head -n1`
-	@if [ -z "{{TUNNEL_ID}}" ]; then echo "ERROR: Could not find tunnel ID"; exit 1; fi
-	@mkdir -p {{CLOUDFLARE_CREDS_DIR}}
-	@cat > {{CLOUDFLARE_CREDS_DIR}}/config.yml <<EOF
-tunnel: {{TUNNEL_ID}}
-credentials-file: {{CLOUDFLARE_CREDS_DIR}}/{{TUNNEL_ID}}.json
-
-ingress:
-  - hostname: hitchhiker.optgeo.org
-    service: http://localhost:80
-  - service: http_status:404
-EOF
-	@echo "config.yml created at {{CLOUDFLARE_CREDS_DIR}}/config.yml"
-	@echo ""
-	@echo "Tunnel ID: {{TUNNEL_ID}}"
-	@echo "Tunnel credentials: {{CLOUDFLARE_CREDS_DIR}}/{{TUNNEL_ID}}.json"
-	@echo ""
-	@echo "Next steps:"
-	@echo "1. Configure DNS in your Cloudflare dashboard:"
-	@echo "   - Go to your domain (optgeo.org) DNS settings"
-	@echo "   - Add a CNAME record:"
-	@echo "     Name: hitchhiker"
-	@echo "     Target: {{TUNNEL_ID}}.cfargotunnel.com"
-	@echo "     Proxy status: Proxied (orange cloud)"
-	@echo ""
-	@echo "2. Run \"just tunnel\" to start the tunnel"
-	@echo "3. Access your map at https://hitchhiker.optgeo.org"
+	@TUNNEL_ID=$$(cloudflared tunnel list | grep "{{TUNNEL_NAME}}" | awk '{print $$1}' | head -n1); \
+		if [ -z "$$TUNNEL_ID" ]; then echo "ERROR: Could not find tunnel ID"; exit 1; fi; \
+		mkdir -p {{CLOUDFLARE_CREDS_DIR}}; \
+		printf '%s\n' \
+		"tunnel: $$TUNNEL_ID" \
+		"credentials-file: {{CLOUDFLARE_CREDS_DIR}}/$$TUNNEL_ID.json" \
+		"" \
+		"ingress:" \
+		"  - hostname: hitchhiker.optgeo.org" \
+		"    service: http://localhost:80" \
+		"  - service: http_status:404" \
+		> {{CLOUDFLARE_CREDS_DIR}}/config.yml; \
+		echo "config.yml created at {{CLOUDFLARE_CREDS_DIR}}/config.yml"; \
+		echo ""; \
+		echo "Tunnel ID: $$TUNNEL_ID"; \
+		echo "Tunnel credentials: {{CLOUDFLARE_CREDS_DIR}}/$$TUNNEL_ID.json"; \
+		echo ""; \
+		echo "Next steps:"; \
+		echo "1. Configure DNS in your Cloudflare dashboard:"; \
+		echo "   - Go to your domain (optgeo.org) DNS settings"; \
+		echo "   - Add a CNAME record:"; \
+		echo "     Name: hitchhiker"; \
+		echo "     Target: $$TUNNEL_ID.cfargotunnel.com"; \
+		echo "     Proxy status: Proxied (orange cloud)"; \
+		echo ""; \
+		echo "2. Run \"just tunnel\" to start the tunnel"; \
+		echo "3. Access your map at https://hitchhiker.optgeo.org"
 # Start Cloudflare Tunnel in background
 tunnel:
 	@echo "Starting Cloudflare Tunnel '{{TUNNEL_NAME}}'..."
