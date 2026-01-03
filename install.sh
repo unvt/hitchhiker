@@ -751,7 +751,7 @@ download_justfile() {
 		echo "Justfile installed at $JUSTFILE_PATH"
 		echo "Run 'just' or 'just --list' from /home/hitchhiker to see available tasks"
 	else
-		warn "Failed to download Justfile; tunnel features will not be available"
+		warn "Failed to download Justfile; helper tasks will be unavailable"
 	fi
 }
 
