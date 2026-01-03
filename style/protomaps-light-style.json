@@ -23,6 +23,12 @@
       "maxzoom": 12,
       "encoding": "terrarium"
     },
+    "maxar-2020-freetown": {
+      "type": "raster",
+      "attribution": "Maxar 2020",
+      "url": "pmtiles:///pmtiles/maxar-2020-freetown.pmtiles",
+      "tileSize": 256
+    },
     "freetown": {
       "type": "raster",
       "attribution": "Freetown imagery",
@@ -449,6 +455,22 @@
           15, 0
         ],
         "hillshade-illumination-anchor": "viewport"
+      }
+    },
+    {
+      "id": "maxar-2020-imagery",
+      "type": "raster",
+      "source": "maxar-2020-freetown",
+      "minzoom": 13,
+      "paint": {
+        "raster-opacity": [
+          "interpolate",
+          ["linear"],
+          ["zoom"],
+          13, 0,
+          15, 0.8
+        ],
+        "raster-fade-duration": 300
       }
     },
     {

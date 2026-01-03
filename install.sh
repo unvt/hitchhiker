@@ -574,7 +574,7 @@ download_remote_pmtiles() {
 	echo "Attempting to download pre-extracted PMTiles from tunnel.optgeo.org (if available)..."
 	failed_tmp="/tmp/hitch_failed_pmtiles.$$"
 	: > "$failed_tmp" || true
-	for f in protomaps-sl.pmtiles mapterhorn-sl.pmtiles freetown_2025-10-22_nearest.pmtiles; do
+	for f in protomaps-sl.pmtiles mapterhorn-sl.pmtiles maxar-2020-freetown.pmtiles freetown_2025-10-22_nearest.pmtiles; do
 		url="https://tunnel.optgeo.org/${f}"
 		out="$PMTILES_DIR/${f}"
 
