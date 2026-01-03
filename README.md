@@ -8,7 +8,26 @@ This repository is intentionally simple:
 - A shell installer served via GitHub Pages
 - A matching uninstaller
 - A static document root under `/var/www/hitchhiker`
+## Table of Contents
 
+- [Status](#status)
+- [Supported Environment](#supported-environment)
+- [Install](#install)
+- [Terrain / DEM Requirements](#terrain--dem-requirements)
+- [Uninstall](#uninstall)
+- [What Gets Installed](#what-gets-installed-filesystem)
+- [Web Server (Caddy)](#web-server-caddy)
+  - [Enabling Automatic HTTPS](#enabling-automatic-https-hitchhiker_host)
+  - [Self-signed HTTPS](#self-signed-https-local-testing)
+- [Cloudflare Tunnel (Internet Exposure)](#cloudflare-tunnel-internet-exposure-via-tunneloptgeoorg)
+- [PMTiles Extraction & Upload](#pmtiles-extraction--upload-macos-host)
+- [Offline Style and Assets](#offline-style-and-assets)
+- [Verification & Quick Tests](#verification--quick-tests)
+- [MapLibre GL JS and pmtiles.js](#maplibre-gl-js-and-pmtilesjs-how-we-fetch-latest)
+- [Adding Your PMTiles](#adding-your-pmtiles)
+- [Architecture & Philosophy](#architecture--philosophy-distributed-and-forward-deployed-web-maps)
+- [Relationship to UNVT Portable](#relationship-to-unvt-portable)
+- [License](#license)
 ## Status
 
 This project is under active construction. The installer aims to be:
@@ -26,11 +45,22 @@ This project is under active construction. The installer aims to be:
 
 The installer is hosted on GitHub Pages (repository root):
 
+**Basic installation (local HTTP server only):**
+
 ```sh
 curl -fsSL https://unvt.github.io/hitchhiker/install.sh | sudo sh
 ```
 
-Notes:
+**With Cloudflare Tunnel support (optional, for internet exposure):**
+
+```sh
+curl -fsSL https://unvt.github.io/hitchhiker/install.sh | \
+  sudo HITCHHIKER_CLOUDFLARE=1 sh
+```
+
+This installs `cloudflared` and the management `Justfile` for tunnel operations. See [Cloudflare Tunnel](#cloudflare-tunnel-internet-exposure) section below for setup instructions.
+
+**Notes:**
 - `sudo` is required.
 - If you do not trust pipe-to-shell, inspect first:
 
@@ -296,8 +326,7 @@ Notes:
 - Adjust the source URLs if you maintain your own mirror or use a different daily-build endpoint.
 - The repository `.gitignore` is configured to exclude `extracts/*.pmtiles` to avoid checking large binary files into Git.
 
-Offline style and assets
-------------------------
+## Offline Style and Assets
 
 The installer also attempts to install a local style and assets so the device can render maps offline. During `install.sh` the installer will:
 
@@ -312,8 +341,7 @@ The included `style/protomaps-light-style.json` is an offline-friendly style tha
 
 You can customize or replace the style before running the installer.
 
-Verification & quick tests
--------------------------
+## Verification & Quick Tests
 
 After running `install.sh`, verify the site and assets with these best-effort checks (run on the device, or from a host that can reach it):
 
@@ -331,13 +359,11 @@ sudo journalctl -u caddy --no-pager -n 50
 
 Open a browser to `http://<IP>/` to confirm the map loads. If the default style.json is missing assets, edit `/var/www/hitchhiker/style/protomaps-light/style.json` to point to locally-installed sprites/glyphs.
 
-Caddy configuration strategy (conservative + uninstallable):
+**Caddy configuration strategy (conservative + uninstallable):**
 - A site snippet is written to `/etc/caddy/Caddyfile.d/hitchhiker.caddy`
 - The main `/etc/caddy/Caddyfile` is updated only to add an `import Caddyfile.d/*.caddy` line if it is missing
 
-This keeps Hitchhiker configuration isolated and easy to remove.
-
-If you already have a custom Caddy configuration on `:80`, Hitchhiker will avoid making conflicting changes. In that case, you may need to manually point your existing `:80` site to `/var/www/hitchhiker`.
+This keeps Hitchhiker configuration isolated and easy to remove. If you already have a custom Caddy configuration on `:80`, Hitchhiker will avoid making conflicting changes. In that case, you may need to manually point your existing `:80` site to `/var/www/hitchhiker`.
 
 ## MapLibre GL JS and pmtiles.js (How We Fetch “Latest”)
 
