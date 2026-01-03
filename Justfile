@@ -117,20 +117,20 @@ logs-tunnel:
 tunnel_systemd_install:
 	@echo "Creating systemd service for persistent Cloudflare Tunnel..."
 	@bash -lc 'if [ ! -f "{{CLOUDFLARE_CREDS_DIR}}/config.yml" ]; then echo "ERROR: config.yml not found. Run \"just tunnel_setup\" first."; exit 1; fi'
-	@sudo bash -lc 'cat > /etc/systemd/system/cloudflared.service <<EOF\n\
-[Unit]\n\
-Description=Cloudflare Tunnel\n\
-After=network.target\n\
-\n\
-[Service]\n\
-Type=simple\n\
-ExecStart=/usr/bin/cloudflared tunnel --config {{CLOUDFLARE_CREDS_DIR}}/config.yml run\n\
-Restart=on-failure\n\
-RestartSec=5s\n\
-\n\
-[Install]\n\
-WantedBy=multi-user.target\n\
-EOF'
+	@sudo bash -c 'cat > /etc/systemd/system/cloudflared.service <<'\''EOF'\'' \
+	[Unit] \
+	Description=Cloudflare Tunnel \
+	After=network.target \
+	 \
+	[Service] \
+	Type=simple \
+	ExecStart=/usr/bin/cloudflared tunnel --config {{CLOUDFLARE_CREDS_DIR}}/config.yml run \
+	Restart=on-failure \
+	RestartSec=5s \
+	 \
+	[Install] \
+	WantedBy=multi-user.target \
+	EOF'
 	@sudo systemctl daemon-reload
 	@sudo systemctl enable cloudflared
 	@echo "Systemd service created. Start with:"
