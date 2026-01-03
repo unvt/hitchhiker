@@ -143,50 +143,6 @@ ensure_packages() {
 	apt-get install -y ca-certificates curl openssl unzip just
 }
 
-ensure_cloudflared_if_requested() {
-	# Optional: install cloudflared for Cloudflare Tunnel support
-	if [ "${HITCHHIKER_CLOUDFLARE:-0}" != "1" ]; then
-		return 0
-	fi
-	
-	echo "Installing cloudflared for Cloudflare Tunnel support..."
-	if ! command -v cloudflared >/dev/null 2>&1; then
-		# Remove any old/conflicting Cloudflare repository sources
-		rm -f /etc/apt/sources.list.d/cloudflare*.list 2>/dev/null || true
-		
-		# Add Cloudflare's Debian repository (updated 2025)
-		mkdir -p --mode=0755 /usr/share/keyrings
-		curl -fsSL https://pkg.cloudflare.com/cloudflare-main.gpg | tee /usr/share/keyrings/cloudflare-main.gpg >/dev/null || true
-		echo "deb [signed-by=/usr/share/keyrings/cloudflare-main.gpg] https://pkg.cloudflare.com/cloudflared any main" | tee /etc/apt/sources.list.d/cloudflared.list || true
-		
-		# Attempt apt installation first
-		if apt-get update 2>&1 | grep -q "pkg.cloudflare.com.*404"; then
-			echo "warn: Cloudflare repository unreachable; attempting binary download from GitHub..."
-			# Fallback: download binary directly from GitHub releases
-			ARCH=$(dpkg --print-architecture)
-			case "$ARCH" in
-				amd64) CLOUDFLARED_ARCH="amd64" ;;
-				arm64) CLOUDFLARED_ARCH="arm64" ;;
-				armhf) CLOUDFLARED_ARCH="arm" ;;
-				*) warn "Unsupported architecture: $ARCH"; return 1 ;;
-			esac
-			LATEST_URL="https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-${CLOUDFLARED_ARCH}"
-			TMP_CLOUDFLARED="/tmp/cloudflared"
-			if curl -fsSL "$LATEST_URL" -o "$TMP_CLOUDFLARED"; then
-				chmod +x "$TMP_CLOUDFLARED"
-				mv "$TMP_CLOUDFLARED" /usr/local/bin/cloudflared
-				echo "cloudflared installed via GitHub release"
-			else
-				warn "Failed to download cloudflared from GitHub"
-				return 1
-			fi
-		else
-			apt-get install -y cloudflared || warn "cloudflared installation failed; tunnel features will be unavailable"
-		fi
-	else
-		echo "cloudflared already installed"
-	fi
-}
 
 install_basemaps_assets() {
 	# Installs sprites and glyphs from https://github.com/protomaps/basemaps-assets
@@ -942,7 +898,6 @@ main() {
 	ensure_packages
 	need_cmd curl
 	install_caddy_if_missing
-	ensure_cloudflared_if_requested
 	ensure_site_root
 	download_vendor_assets
 	install_basemaps_assets || true
@@ -957,8 +912,6 @@ main() {
 	verify_pmtiles_protocol
 
 	echo "Done. Try: http://$(hostname -I 2>/dev/null | awk '{print $1}')/"
-	echo ""
-	echo "To manage the tunnel, run: just -f /home/hitchhiker/Justfile"
 }
 
 main "$@"

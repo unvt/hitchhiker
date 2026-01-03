@@ -19,7 +19,6 @@ This repository is intentionally simple:
 - [Web Server (Caddy)](#web-server-caddy)
   - [Enabling Automatic HTTPS](#enabling-automatic-https-hitchhiker_host)
   - [Self-signed HTTPS](#self-signed-https-local-testing)
-- [Cloudflare Tunnel (Internet Exposure)](#cloudflare-tunnel-internet-exposure-via-tunneloptgeoorg)
 - [PMTiles Extraction & Upload](#pmtiles-extraction--upload-macos-host)
 - [Offline Style and Assets](#offline-style-and-assets)
 - [Verification & Quick Tests](#verification--quick-tests)
@@ -51,14 +50,7 @@ Use `sudo`. Inspect first if desired with `curl ... | less`.
 curl -fsSL https://unvt.github.io/hitchhiker/install.sh | sudo sh
 ```
 
-- With Cloudflare Tunnel (internet exposure):
-
-```sh
-curl -fsSL https://unvt.github.io/hitchhiker/install.sh | \
-  sudo HITCHHIKER_CLOUDFLARE=1 sh
-```
-
-Tunnel setup steps are summarized in [Cloudflare Tunnel](#cloudflare-tunnel-internet-exposure-via-tunneloptgeoorg).
+For internet exposure, use your own reverse proxy or tunneling setup (not bundled in Hitchhiker).
 
 ## Terrain / DEM requirements
 
@@ -102,7 +94,7 @@ Server management:
 
 ```
 /home/hitchhiker/
-├── Justfile          # Tasks for tunnel management, verification, and logs
+├── Justfile          # Tasks for verification and logs
 ```
 
 Why `/var/www/hitchhiker`?
@@ -159,20 +151,9 @@ If you do not set `HITCHHIKER_HOST`, Hitchhiker remains an HTTP site on `:80` an
 Self-signed HTTPS (local testing)
 ---------------------------------
 Keep GeoLocation/HTTPS guidance concise:
-- Browsers typically allow Geolocation only on HTTPS or localhost. Easiest workarounds: SSH tunnel or Cloudflare Tunnel.
+- Browsers typically allow Geolocation only on HTTPS or localhost. Easiest workaround: SSH tunnel (or access via localhost).
 - Only set `HITCHHIKER_HOST` when you intend to serve public HTTPS and the hostname is DNS-resolvable to the device.
 - For local self-signed HTTPS (development), you can run `HITCHHIKER_HOST=hitchhiker.local HITCHHIKER_SELF_SIGN=1 sudo sh install.sh` and manually trust the cert in your browser.
-
-Cloudflare Tunnel (Internet Exposure via tunnel.optgeo.org)
------------------------------------------------------------
-
-4ステップだけ覚えればOK：
-1) `cd /home/hitchhiker && sudo just tunnel_setup`（config.yml自動生成＋DNS案内）
-2) Cloudflareで CNAME: `hitchhiker` → `<tunnel-id>.cfargotunnel.com`
-3) `sudo just tunnel`（公開URL: https://hitchhiker.optgeo.org）
-4) 任意で常駐: `sudo just tunnel_systemd_install && sudo systemctl start cloudflared`
-
-メモ：トンネルはオプション、止めたければ `sudo just tunnel_stop`。必要なら `/root/.cloudflared/` を削除して再発行。
 
 ## PMTiles Extraction & Upload (macOS host)
 
@@ -345,7 +326,6 @@ This project is built on the shoulders of many open-source and open-data initiat
 - **[MapLibre GL JS](https://maplibre.org/)** - Open-source map rendering library (BSD-3 License)
 - **[PMTiles](https://github.com/protomaps/PMTiles)** - Cloud-optimized tile archive format by Protomaps (BSD-3 License)
 - **[Caddy](https://caddyserver.com/)** - Modern web server with automatic HTTPS (Apache 2.0 License)
-- **[Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/get-started/)** (cloudflared) - Secure tunnel service for internet exposure
 - **[just](https://github.com/casey/just)** - Command runner for task automation (CC0 License)
 
 ### Data Hosting
