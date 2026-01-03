@@ -27,6 +27,22 @@ main() {
 		echo "Removed just package"
 	fi
 
+	# Remove cloudflared and Cloudflare Tunnel support
+	if command -v cloudflared >/dev/null 2>&1; then
+		apt-get remove -y cloudflared 2>/dev/null || true
+		rm -f /usr/local/bin/cloudflared
+		echo "Removed cloudflared"
+	fi
+
+	# Clean up old and new Cloudflare repository configurations
+	rm -f /etc/apt/sources.list.d/cloudflare*.list 2>/dev/null || true
+	rm -f /etc/apt/sources.list.d/cloudflared.list 2>/dev/null || true
+	echo "Removed Cloudflare repository configurations"
+
+	# Clean up Cloudflare GPG keys
+	rm -f /usr/share/keyrings/cloudflare-*.gpg 2>/dev/null || true
+	echo "Removed Cloudflare GPG keys"
+
 	# Remove Caddy site snippet (safe to remove).
 	if [ -f "$CADDY_SNIPPET_FILE" ]; then
 		rm -f "$CADDY_SNIPPET_FILE"
