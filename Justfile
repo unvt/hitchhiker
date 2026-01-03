@@ -5,23 +5,11 @@
 TUNNEL_NAME := "hitchhiker"
 CLOUDFLARE_CREDS_DIR := "/root/.cloudflared"
 
-# Default target: display help
-default: help
+# Show available tasks
+default:
+	@just --list
 
-help:
-	@echo "UNVT Hitchhiker server tasks:"
-	@echo "  just tunnel_setup              - Authenticate with Cloudflare and create tunnel (first-time only)"
-	@echo "  just tunnel                    - Start the Cloudflare Tunnel (on-demand)"
-	@echo "  just tunnel_stop               - Stop the Cloudflare Tunnel"
-	@echo "  just tunnel_info               - Show tunnel configuration and status"
-	@echo "  just tunnel_systemd_install    - (Optional) Install systemd service for persistent tunnel"
-	@echo "  just tunnel_systemd_uninstall  - Remove systemd service"
-	@echo "  just verify-local              - Verify local map server is running and assets are available"
-	@echo "  just logs-caddy                - View Caddy web server logs"
-	@echo "  just logs-tunnel               - View Cloudflare Tunnel logs (if running)"
-	@echo ""
-	@echo "Note: Requires root or sudo for tunnel operations."
-
+# Authenticate with Cloudflare and create tunnel (first-time setup)
 tunnel_setup:
 	@echo "Setting up Cloudflare Tunnel for {{TUNNEL_NAME}}..."
 	@echo ""
@@ -65,6 +53,7 @@ EOF\n\
 		echo "2. Run \"just tunnel\" to start the tunnel"; \
 		echo "3. Access your map at https://hitchhiker.optgeo.org"'
 
+# Start Cloudflare Tunnel in background
 tunnel:
 	@echo "Starting Cloudflare Tunnel '{{TUNNEL_NAME}}'..."
 	@bash -lc 'if [ ! -f "{{CLOUDFLARE_CREDS_DIR}}/config.yml" ]; then echo "ERROR: config.yml not found. Run \"just tunnel_setup\" first."; exit 1; fi'
@@ -75,10 +64,12 @@ tunnel:
 	@echo "Check tunnel status with:"
 	@echo "  just logs-tunnel"
 
+# Stop running Cloudflare Tunnel
 tunnel_stop:
 	@echo "Stopping Cloudflare Tunnel..."
 	@bash -lc 'pkill -f "cloudflared tunnel.*{{TUNNEL_NAME}}" && echo "Tunnel stopped." || echo "Tunnel process not found."'
 
+# Show tunnel configuration and running status
 tunnel_info:
 	@echo "Cloudflare Tunnel Information:"
 	@echo "=============================="
@@ -97,7 +88,7 @@ tunnel_info:
 		echo "Tunnel not configured. Run \"just tunnel_setup\" to create."; \
 	fi'
 
-# Local development: verify that map server is running
+# Verify local map server and PMTiles assets
 verify-local:
 	@echo "Verifying local map server..."
 	@curl -fsS http://127.0.0.1/ > /dev/null && echo "✓ Server responding at http://127.0.0.1/" || echo "✗ Server not responding"
@@ -105,15 +96,15 @@ verify-local:
 	@curl -fsI http://127.0.0.1/pmtiles/protomaps-sl.pmtiles > /dev/null && echo "✓ Protomaps PMTiles available" || echo "✗ Protomaps PMTiles not found"
 	@curl -fsI http://127.0.0.1/pmtiles/mapterhorn-sl.pmtiles > /dev/null && echo "✓ Mapterhorn PMTiles available" || echo "✗ Mapterhorn PMTiles not found"
 
-# View Caddy logs
+# View Caddy web server logs
 logs-caddy:
 	@sudo journalctl -u caddy --no-pager -n 50
 
-# View cloudflared logs (if applicable)
+# View Cloudflare Tunnel logs
 logs-tunnel:
 	@sudo journalctl -u cloudflared --no-pager -n 50 2>/dev/null || echo "cloudflared service not found; tunnel may be running in foreground"
 
-# Optional: Create systemd service for persistent tunnel (always-on)
+# Install systemd service for persistent tunnel
 tunnel_systemd_install:
 	@echo "Creating systemd service for persistent Cloudflare Tunnel..."
 	@bash -lc 'if [ ! -f "{{CLOUDFLARE_CREDS_DIR}}/config.yml" ]; then echo "ERROR: config.yml not found. Run \"just tunnel_setup\" first."; exit 1; fi'
@@ -137,6 +128,7 @@ tunnel_systemd_install:
 	@echo "  sudo systemctl start cloudflared"
 	@echo "  sudo systemctl status cloudflared"
 
+# Remove systemd service for tunnel
 tunnel_systemd_uninstall:
 	@echo "Removing systemd service for Cloudflare Tunnel..."
 	@sudo systemctl stop cloudflared 2>/dev/null || true
