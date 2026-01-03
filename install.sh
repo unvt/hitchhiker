@@ -390,15 +390,38 @@ ensure_site_root() {
 	<link rel="stylesheet" href="/vendor/maplibre/maplibre-gl.css" />
 	<style>
 		html, body, #map { height: 100%; margin: 0; }
-		#banner { position: absolute; top: 0; left: 0; right: 0; z-index: 2; padding: 8px 10px; background: rgba(255,255,255,0.9); font: 14px/1.3 system-ui, -apple-system, sans-serif; }
+		#banner { position: absolute; top: 0; left: 0; right: 0; z-index: 2; padding: 8px 10px; background: rgba(255,255,255,0.9); font: 14px/1.3 system-ui, -apple-system, sans-serif; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 		#map { position: absolute; top: 0; left: 0; right: 0; bottom: 0; }
-		.notice { font-size: 12px; color: #444; }
+		#controls { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; }
+		.control { background: #f6f6f6; border: 1px solid #ddd; border-radius: 4px; padding: 4px 6px; }
+		.control label { margin-right: 6px; }
 	</style>
 </head>
 <body>
 	<div id="banner">
 		<strong>UNVT Hitchhiker</strong> — Offline map using local PMTiles.
-		<div class="notice">Edit /var/www/hitchhiker/style/protomaps-light/style.json to customize.</div>
+		<div id="controls">
+			<div class="control" data-group="protomaps">
+				<div><strong>Basemap</strong> (Protomaps)</div>
+				<label><input type="radio" name="protomaps" value="on" checked> On</label>
+				<label><input type="radio" name="protomaps" value="off"> Off</label>
+			</div>
+			<div class="control" data-group="mapterhorn">
+				<div><strong>Terrain</strong> (Mapterhorn)</div>
+				<label><input type="radio" name="mapterhorn" value="on" checked> On</label>
+				<label><input type="radio" name="mapterhorn" value="off"> Off</label>
+			</div>
+			<div class="control" data-group="uav">
+				<div><strong>Imagery</strong> (UAV 2025)</div>
+				<label><input type="radio" name="uav" value="on" checked> On</label>
+				<label><input type="radio" name="uav" value="off"> Off</label>
+			</div>
+			<div class="control" data-group="maxar">
+				<div><strong>Imagery</strong> (Maxar 2020)</div>
+				<label><input type="radio" name="maxar" value="on" checked> On</label>
+				<label><input type="radio" name="maxar" value="off"> Off</label>
+			</div>
+		</div>
 	</div>
 	<div id="map"></div>
 
@@ -406,6 +429,40 @@ ensure_site_root() {
 	<script src="/vendor/maplibre/maplibre-gl.js"></script>
 	<script>
 		(async function() {
+			let map = null;
+			const layerState = { protomaps: true, mapterhorn: true, uav: true, maxar: true };
+			const applyVisibility = () => {
+				const style = map.getStyle();
+				if (!style || !style.layers) return;
+				for (const layer of style.layers) {
+					if (!layer.id) continue;
+					if (layer.source === 'protomaps') {
+						try { map.setLayoutProperty(layer.id, 'visibility', layerState.protomaps ? 'visible' : 'none'); } catch (_) {}
+					}
+					if (layer.source === 'mapterhorn-hs' || layer.id === 'multidirectional-hillshade') {
+						try { map.setLayoutProperty(layer.id, 'visibility', layerState.mapterhorn ? 'visible' : 'none'); } catch (_) {}
+					}
+					if (layer.id === 'freetown-imagery') {
+						try { map.setLayoutProperty(layer.id, 'visibility', layerState.uav ? 'visible' : 'none'); } catch (_) {}
+					}
+					if (layer.id === 'maxar-2020-imagery') {
+						try { map.setLayoutProperty(layer.id, 'visibility', layerState.maxar ? 'visible' : 'none'); } catch (_) {}
+					}
+				}
+				if (layerState.mapterhorn && map.getSource('mapterhorn-dem')) {
+					try { map.setTerrain({ source: 'mapterhorn-dem', exaggeration: 1 }); } catch (_) {}
+				} else {
+					try { map.setTerrain(null); } catch (_) {}
+				}
+			};
+			const wireControls = () => {
+				document.querySelectorAll('#controls input[type="radio"]').forEach((el) => {
+					el.addEventListener('change', () => {
+						layerState[el.name] = el.value === 'on';
+						applyVisibility();
+					});
+				});
+			};
 			function transformStyle(previous, next) {
 				// MapLibre requires sprite/glyph URLs to be absolute.
 				// Keep the checked-in style host-agnostic (works on changing IPs) by converting
@@ -517,7 +574,7 @@ ensure_site_root() {
 			// Prefer a non-CSP worker if available (installer places it at /vendor/maplibre/maplibre-gl-worker.js).
 			// If that file is missing, MapLibre will use its default worker loading behavior.
 			maplibregl.workerUrl = '/vendor/maplibre/maplibre-gl-worker.js';
-			const map = new maplibregl.Map({
+			map = new maplibregl.Map({
 				container: 'map',
 				style: { version: 8, sources: {}, layers: [] },
 				hash: 'map',
@@ -535,9 +592,13 @@ ensure_site_root() {
 				       try { map.setStyle(style); } catch (e2) { console.error('fallback setStyle also failed:', e2); }
 			       }
 
-			// If you want to add 3D lighting or hillshade, extend the style.json with
-			// sources referencing /pmtiles/mapterhorn-sl.pmtiles and vector layers from protomaps.
-			// The installer places the style under /style/protomaps-light/style.json.
+				wireControls();
+				map.on('styledata', applyVisibility);
+				applyVisibility();
+
+				// If you want to add 3D lighting or hillshade, extend the style.json with
+				// sources referencing /pmtiles/mapterhorn-sl.pmtiles and vector layers from protomaps.
+				// The installer places the style under /style/protomaps-light/style.json.
 		})();
 	</script>
 </body>

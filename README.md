@@ -43,31 +43,22 @@ This project is under active construction. The installer aims to be:
 - Privileges: root is required (writes to `/var`, `/etc`, uses `systemctl`)
 
 ## Install
+Use `sudo`. Inspect first if desired with `curl ... | less`.
 
-The installer is hosted on GitHub Pages (repository root):
-
-**Basic installation (local HTTP server only):**
+- Local HTTP only:
 
 ```sh
 curl -fsSL https://unvt.github.io/hitchhiker/install.sh | sudo sh
 ```
 
-**With Cloudflare Tunnel support (optional, for internet exposure):**
+- With Cloudflare Tunnel (internet exposure):
 
 ```sh
 curl -fsSL https://unvt.github.io/hitchhiker/install.sh | \
   sudo HITCHHIKER_CLOUDFLARE=1 sh
 ```
 
-This installs `cloudflared` and the management `Justfile` for tunnel operations. See [Cloudflare Tunnel](#cloudflare-tunnel-internet-exposure) section below for setup instructions.
-
-**Notes:**
-- `sudo` is required.
-- If you do not trust pipe-to-shell, inspect first:
-
-```sh
-curl -fsSL https://unvt.github.io/hitchhiker/install.sh | less
-```
+Tunnel setup steps are summarized in [Cloudflare Tunnel](#cloudflare-tunnel-internet-exposure-via-tunneloptgeoorg).
 
 ## Terrain / DEM requirements
 
@@ -168,122 +159,21 @@ If you do not set `HITCHHIKER_HOST`, Hitchhiker remains an HTTP site on `:80` an
 Self-signed HTTPS (local testing)
 ---------------------------------
 
-If you need HTTPS for local features like the Geolocation API but cannot use a public hostname, the installer can generate a self-signed certificate and configure Caddy to use it. This will enable HTTPS, but browsers will treat the certificate as untrusted until you import it into the client device's trust store.
-
-- To enable self-signed cert generation at install time, set these environment variables when running the installer:
-
-```sh
-HITCHHIKER_HOST=hitchhiker.local HITCHHIKER_SELF_SIGN=1 sudo sh install.sh
-```
-
-- The installer will place the generated cert at `/etc/caddy/ssl/<HITCHHIKER_HOST>.crt` and key at `/etc/caddy/ssl/<HITCHHIKER_HOST>.key` and configure Caddy to use them.
-- You must import the `.crt` into the client device's trust store (browser/OS) to avoid security warnings and to allow `navigator.geolocation` to work. On macOS, double-click the `.crt` and add it to the System keychain, then mark it as trusted for SSL. On Android/iOS you can import the cert into the device's trust store (procedures differ by OS/version).
-- Note: self-signed certs are suitable for local testing and development. For public deployments prefer a real CA-signed certificate (set `HITCHHIKER_HOST` to a publicly resolvable name and allow Caddy to manage ACME certificates).
+GeoLocationやHTTPSは簡潔に：
+- GeoLocationは通常HTTPSまたはlocalhostのみ許可。簡易対応はSSHトンネルかCloudflare Tunnel。
+- 公開HTTPSを使う場合だけ `HITCHHIKER_HOST` を指定（DNSで到達可能であること）。
+- ローカル用途で自己署名が必要なら `HITCHHIKER_HOST=hitchhiker.local HITCHHIKER_SELF_SIGN=1 sudo sh install.sh`。ブラウザには手動で証明書を信頼させる。
 
 Cloudflare Tunnel (Internet Exposure via tunnel.optgeo.org)
 -----------------------------------------------------------
 
-Hitchhiker can optionally expose your map server to the internet via Cloudflare Tunnel (`cloudflared`). This is useful for:
-- Sharing your maps with remote collaborators
-- Testing geolocation and HTTPS-dependent browser features
-- Accessing your device without port forwarding or DNS setup
+4ステップだけ覚えればOK：
+1) `cd /home/hitchhiker && sudo just tunnel_setup`（config.yml自動生成＋DNS案内）
+2) Cloudflareで CNAME: `hitchhiker` → `<tunnel-id>.cfargotunnel.com`
+3) `sudo just tunnel`（公開URL: https://hitchhiker.optgeo.org）
+4) 任意で常駐: `sudo just tunnel_systemd_install && sudo systemctl start cloudflared`
 
-**How it works:**
-1. `cloudflared` creates an authenticated tunnel from your device to Cloudflare's edge network
-2. A public CNAME record (e.g., `hitchhiker.optgeo.org`) points to the tunnel
-3. Cloudflare handles HTTPS and certificate management automatically
-4. Your device remains offline-capable; the tunnel is optional and can be stopped at any time
-
-**Setup and usage:**
-
-1. **First time only:** Create a tunnel identity and authenticate:
-
-```sh
-cd /home/hitchhiker
-just tunnel_setup
-```
-
-This command will:
-- Prompt you for your Cloudflare account credentials (or token)
-- Guide you through creating a tunnel named `hitchhiker`
-- Auto-generate `/root/.cloudflared/config.yml` with ingress rules (maps `hitchhiker.optgeo.org` → `http://localhost:80`)
-- Display detailed DNS CNAME setup instructions (copy-paste ready)
-
-2. **Configure DNS CNAME (in Cloudflare dashboard):**
-
-After running `tunnel_setup`, you'll see output like:
-
-```
-Add this DNS record in Cloudflare:
-  Type: CNAME
-  Name: hitchhiker
-  Target: abc123-xyz.cfargotunnel.com
-```
-
-Go to your Cloudflare domain's DNS settings and create the CNAME record. This maps your public URL (`hitchhiker.optgeo.org`) to the tunnel.
-
-3. **Start the tunnel (on-demand):**
-
-```sh
-cd /home/hitchhiker
-just tunnel
-```
-
-This runs `cloudflared tunnel --config /root/.cloudflared/config.yml run` in the background, exposing your device at `https://hitchhiker.optgeo.org`.
-
-4. **Check tunnel status:**
-
-```sh
-cd /home/hitchhiker
-just tunnel_info
-```
-
-This displays tunnel ID, public URL, CNAME target, and whether the tunnel is currently running.
-
-5. **Stop the tunnel:**
-
-```sh
-cd /home/hitchhiker
-just tunnel_stop
-```
-
-6. **(Optional) Make tunnel persistent with systemd:**
-
-For always-on tunneling across reboots:
-
-```sh
-cd /home/hitchhiker
-just tunnel_systemd_install
-sudo systemctl start cloudflared
-sudo systemctl status cloudflared
-```
-
-To remove the systemd service:
-
-```sh
-cd /home/hitchhiker
-just tunnel_systemd_uninstall
-```
-
-7. **View available tasks:**
-
-```sh
-cd /home/hitchhiker
-just
-# or
-just --list
-```
-
-**Configuration:**
-- Tunnel credentials and config are stored under `/root/.cloudflared/` and are persistent across reboots.
-- The tunnel name is fixed as `hitchhiker` for simplicity.
-- `config.yml` is auto-generated by `tunnel_setup` with ingress rules mapping your public URL to `localhost:80`.
-
-**Important notes:**
-- The tunnel is **optional**: your device works perfectly offline even if you never set it up.
-- Tunneling adds a small latency (routing through Cloudflare edge), but is ideal for remote testing and collaboration.
-- By default, the tunnel runs on-demand (manual start/stop). Use `tunnel_systemd_install` for persistent operation.
-- If you need to revoke the tunnel, delete `/root/.cloudflared/` and create a new one via `tunnel_setup`.
+メモ：トンネルはオプション、止めたければ `sudo just tunnel_stop`。必要なら `/root/.cloudflared/` を削除して再発行。
 
 ## PMTiles Extraction & Upload (macOS host)
 
@@ -359,7 +249,7 @@ sudo systemctl restart caddy
 sudo journalctl -u caddy --no-pager -n 50
 ```
 
-Open a browser to `http://<IP>/` to confirm the map loads. If the default style.json is missing assets, edit `/var/www/hitchhiker/style/protomaps-light/style.json` to point to locally-installed sprites/glyphs.
+Open a browser to `http://<IP>/` to confirm the map loads.
 
 **Caddy configuration strategy (conservative + uninstallable):**
 - A site snippet is written to `/etc/caddy/Caddyfile.d/hitchhiker.caddy`
@@ -396,6 +286,8 @@ Copy your `.pmtiles` into:
 ```
 
 The default `index.html` is a minimal template intended to be edited for your own style and data.
+
+Background and design notes start here (skip if you only need install/run).
 
 ## Architecture & Philosophy: Distributed and Forward-Deployed Web Maps
 
