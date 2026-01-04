@@ -11,6 +11,7 @@ This repository provides a minimal, pipe-to-shell installer/uninstaller for a st
 ## Hard requirements
 
 - Repository language is **English** for all documentation and user-facing output.
+- **Git commit messages must be in English** for consistency and global accessibility.
 - Default document root is `/var/www/hitchhiker`.
 - Default web serving is **HTTP on port 80**.
 - Vendor assets are installed locally under `/var/www/hitchhiker/vendor/`.

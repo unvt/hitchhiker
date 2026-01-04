@@ -24,6 +24,10 @@ This repository is intentionally simple:
 - [Verification & Quick Tests](#verification--quick-tests)
 - [MapLibre GL JS and pmtiles.js](#maplibre-gl-js-and-pmtilesjs-how-we-fetch-latest)
 - [Adding Your PMTiles](#adding-your-pmtiles)
+- [Web Interface Features](#web-interface-features)
+  - [Layer Controls](#layer-controls)
+  - [Panel Minimization](#panel-minimization)
+  - [URL State Persistence](#url-state-persistence)
 - [Architecture & Philosophy](#architecture--philosophy-distributed-and-forward-deployed-web-maps)
 - [Relationship to UNVT Portable](#relationship-to-unvt-portable)
 - [Acknowledgments](#acknowledgments)
@@ -266,6 +270,82 @@ Copy your `.pmtiles` into:
 ```
 
 The default `index.html` is a minimal template intended to be edited for your own style and data.
+
+## Web Interface Features
+
+The Hitchhiker web interface provides an intuitive layer control system:
+
+### Layer Controls
+
+Five independent layer toggles (checkbox-based):
+- **Basemap (Protomaps)** - Vector basemap derived from OpenStreetMap
+- **Hillshade (Mapterhorn)** - Multi-directional hillshading for terrain visualization
+- **Terrain 3D (Mapterhorn)** - 3D terrain elevation (DEM with 1× exaggeration)
+- **Imagery (UAV 2025)** - High-resolution 4cm drone imagery (Freetown, 2025-10-22)
+- **Imagery (Maxar 2020)** - Satellite imagery 30cm resolution (Freetown, 2020-02-03)
+
+### Panel Minimization
+
+- **Toggle button (▲/▼)** in the top-right corner collapses the control panel
+- Useful for mobile devices or to maximize map viewing area
+- Panel slides up smoothly when minimized
+
+### URL State Persistence
+
+Layer visibility is encoded in the URL hash fragment for easy sharing:
+
+**Format:** `#layers=<layer1>,<layer2>,...`
+
+This format is compatible with MapLibre's `#map=` fragment, allowing both to coexist:
+`#map=7/8.5/-11.5&layers=protomaps,hillshade`
+
+**Layer names:**
+- `protomaps` - Basemap
+- `hillshade` - Hillshade
+- `terrain` - Terrain 3D
+- `uav` - UAV 2025 imagery
+- `maxar` - Maxar 2020 imagery
+
+**Examples:**
+```
+# Default (all layers enabled) - no parameter needed
+http://hitchhiker/
+
+# Basemap only
+http://hitchhiker/#layers=protomaps
+
+# Basemap + Hillshade
+http://hitchhiker/#layers=protomaps,hillshade
+
+# Imagery only
+http://hitchhiker/#layers=uav,maxar
+
+# Basemap + Terrain + UAV imagery
+http://hitchhiker/#layers=protomaps,hillshade,terrain,uav
+
+# Combined with map position
+http://hitchhiker/#map=14/8.484/-13.231&layers=protomaps,uav
+```
+
+**Remote Access:**
+- LAN hostname: `http://hitchhiker/`
+- Cloudflare tunnel: `https://hitchhiker.optgeo.org/` (if configured)
+
+**Behavior:**
+- Checkbox state changes update the URL hash in real-time (no page reload)
+- URLs can be shared to reproduce exact layer visibility states
+- Missing or invalid layer names are ignored
+- No `layers` parameter = all layers enabled (default)
+- Empty layers parameter (`#layers=`) = all layers disabled
+- Compatible with MapLibre's `#map=` fragment for preserving map position
+
+**Extensibility:**
+When adding new layers to the map style, update three locations in `/var/www/hitchhiker/index.html`:
+1. Add to `layerNames` object (JavaScript)
+2. Add checkbox control to HTML
+3. Add visibility logic to `applyVisibility()` function
+
+---
 
 Background and design notes start here (skip if you only need install/run).
 

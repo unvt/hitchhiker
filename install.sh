@@ -342,40 +342,43 @@ ensure_site_root() {
 <head>
 	<meta charset="utf-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
-	<title>UNVT Hitchhiker — Offline Map</title>
+	<title>UNVT Hitchhiker</title>
 	<link rel="stylesheet" href="/vendor/maplibre/maplibre-gl.css" />
 	<style>
 		html, body, #map { height: 100%; margin: 0; }
-		#banner { position: absolute; top: 0; left: 0; right: 0; z-index: 2; padding: 8px 10px; background: rgba(255,255,255,0.9); font: 14px/1.3 system-ui, -apple-system, sans-serif; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+		#banner { position: absolute; top: 0; left: 0; right: 0; z-index: 2; padding: 8px 10px; background: rgba(255,255,255,0.9); font: 14px/1.3 system-ui, -apple-system, sans-serif; transition: transform 0.3s; }
+		#banner.minimized { transform: translateY(-100%); }
+		#banner-header { display: flex; gap: 12px; align-items: center; justify-content: space-between; }
+		#toggle-banner { cursor: pointer; background: #e0e0e0; border: 1px solid #999; border-radius: 4px; padding: 2px 8px; font-size: 11px; user-select: none; }
+		#toggle-banner:hover { background: #d0d0d0; }
 		#map { position: absolute; top: 0; left: 0; right: 0; bottom: 0; }
-		#controls { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; }
-		.control { background: #f6f6f6; border: 1px solid #ddd; border-radius: 4px; padding: 4px 6px; }
-		.control label { margin-right: 6px; }
+		#controls { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; margin-top: 8px; }
+		.control { background: #f6f6f6; border: 1px solid #ddd; border-radius: 4px; padding: 4px 8px; }
+		.control label { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; user-select: none; }
+		.control input[type="checkbox"] { cursor: pointer; }
 	</style>
 </head>
 <body>
 	<div id="banner">
-		<strong>UNVT Hitchhiker</strong> — Offline map using local PMTiles.
+		<div id="banner-header">
+			<strong>UNVT Hitchhiker</strong>
+			<button id="toggle-banner" title="Toggle panel">▲</button>
+		</div>
 		<div id="controls">
-			<div class="control" data-group="protomaps">
-				<div><strong>Basemap</strong> (Protomaps)</div>
-				<label><input type="radio" name="protomaps" value="on" checked> On</label>
-				<label><input type="radio" name="protomaps" value="off"> Off</label>
+			<div class="control">
+				<label><input type="checkbox" id="layer-basemap" checked> Basemap (Protomaps)</label>
 			</div>
-			<div class="control" data-group="mapterhorn">
-				<div><strong>Terrain</strong> (Mapterhorn)</div>
-				<label><input type="radio" name="mapterhorn" value="on" checked> On</label>
-				<label><input type="radio" name="mapterhorn" value="off"> Off</label>
+			<div class="control">
+				<label><input type="checkbox" id="layer-hillshade" checked> Hillshade (Mapterhorn)</label>
 			</div>
-			<div class="control" data-group="uav">
-				<div><strong>Imagery</strong> (UAV 2025)</div>
-				<label><input type="radio" name="uav" value="on" checked> On</label>
-				<label><input type="radio" name="uav" value="off"> Off</label>
+			<div class="control">
+				<label><input type="checkbox" id="layer-terrain" checked> Terrain 3D (Mapterhorn)</label>
 			</div>
-			<div class="control" data-group="maxar">
-				<div><strong>Imagery</strong> (Maxar 2020)</div>
-				<label><input type="radio" name="maxar" value="on" checked> On</label>
-				<label><input type="radio" name="maxar" value="off"> Off</label>
+			<div class="control">
+				<label><input type="checkbox" id="layer-uav" checked> Imagery (UAV 2025)</label>
+			</div>
+			<div class="control">
+				<label><input type="checkbox" id="layer-maxar" checked> Imagery (Maxar 2020)</label>
 			</div>
 		</div>
 	</div>
@@ -386,17 +389,65 @@ ensure_site_root() {
 	<script>
 		(async function() {
 			let map = null;
-			const layerState = { protomaps: true, mapterhorn: true, uav: true, maxar: true };
+			const layerState = { basemap: true, hillshade: true, terrain: true, uav: true, maxar: true };
+			
+			// Layer name mapping for URL fragment
+			const layerNames = {
+				basemap: 'protomaps',
+				hillshade: 'hillshade',
+				terrain: 'terrain',
+				uav: 'uav',
+				maxar: 'maxar'
+			};
+			
+			// Parse URL fragment (format: #map=7/8.5/-11.5&layers=protomaps,hillshade)
+			const parseLayersFromURL = () => {
+				const hash = window.location.hash.substring(1); // Remove '#'
+				if (!hash) return;
+				const params = new URLSearchParams(hash);
+				const layersParam = params.get('layers');
+				// If 'layers' param exists, use it; otherwise default to all enabled
+				if (layersParam !== null) {
+					const enabledLayers = layersParam.split(',').map(s => s.trim()).filter(Boolean);
+					// Set all layers to false first, then enable only those in the URL
+					for (const key in layerState) {
+						layerState[key] = enabledLayers.includes(layerNames[key]);
+					}
+				}
+				// If no 'layers' param, keep default (all enabled)
+			};
+			
+			// Update URL hash with current layer state (only if different from default)
+			const updateURL = () => {
+				const enabledLayers = [];
+				for (const key in layerState) {
+					if (layerState[key]) {
+						enabledLayers.push(layerNames[key]);
+					}
+				}
+				// Parse existing hash to preserve 'map' parameter
+				const hash = window.location.hash.substring(1);
+				const params = new URLSearchParams(hash);
+				// Only add 'layers' param if state differs from default (all enabled)
+				const allEnabled = Object.values(layerState).every(v => v);
+				if (!allEnabled && enabledLayers.length > 0) {
+					params.set('layers', enabledLayers.join(','));
+				} else {
+					params.delete('layers');
+				}
+				window.location.hash = params.toString();
+			};
+			
 			const applyVisibility = () => {
 				const style = map.getStyle();
 				if (!style || !style.layers) return;
 				for (const layer of style.layers) {
 					if (!layer.id) continue;
 					if (layer.source === 'protomaps') {
-						try { map.setLayoutProperty(layer.id, 'visibility', layerState.protomaps ? 'visible' : 'none'); } catch (_) {}
+						try { map.setLayoutProperty(layer.id, 'visibility', layerState.basemap ? 'visible' : 'none'); } catch (_) {}
 					}
-					if (layer.source === 'mapterhorn-hs' || layer.id === 'multidirectional-hillshade') {
-						try { map.setLayoutProperty(layer.id, 'visibility', layerState.mapterhorn ? 'visible' : 'none'); } catch (_) {}
+					if (layer.id === 'multidirectional-hillshade') {
+						try { map.setLayoutProperty(layer.id, 'visibility', layerState.hillshade ? 'visible' : 'none'); } catch (_) {}
 					}
 					if (layer.id === 'freetown-imagery') {
 						try { map.setLayoutProperty(layer.id, 'visibility', layerState.uav ? 'visible' : 'none'); } catch (_) {}
@@ -405,18 +456,53 @@ ensure_site_root() {
 						try { map.setLayoutProperty(layer.id, 'visibility', layerState.maxar ? 'visible' : 'none'); } catch (_) {}
 					}
 				}
-				if (layerState.mapterhorn && map.getSource('mapterhorn-dem')) {
+				if (layerState.terrain && map.getSource('mapterhorn-dem')) {
 					try { map.setTerrain({ source: 'mapterhorn-dem', exaggeration: 1 }); } catch (_) {}
 				} else {
 					try { map.setTerrain(null); } catch (_) {}
 				}
 			};
+			
+			const syncCheckboxes = () => {
+				document.getElementById('layer-basemap').checked = layerState.basemap;
+				document.getElementById('layer-hillshade').checked = layerState.hillshade;
+				document.getElementById('layer-terrain').checked = layerState.terrain;
+				document.getElementById('layer-uav').checked = layerState.uav;
+				document.getElementById('layer-maxar').checked = layerState.maxar;
+			};
+			
 			const wireControls = () => {
-				document.querySelectorAll('#controls input[type="radio"]').forEach((el) => {
-					el.addEventListener('change', () => {
-						layerState[el.name] = el.value === 'on';
-						applyVisibility();
-					});
+				const toggleBanner = () => {
+					document.getElementById('banner').classList.toggle('minimized');
+					const btn = document.getElementById('toggle-banner');
+					btn.textContent = document.getElementById('banner').classList.contains('minimized') ? '▼' : '▲';
+				};
+				document.getElementById('toggle-banner').addEventListener('click', toggleBanner);
+				
+				document.getElementById('layer-basemap').addEventListener('change', (e) => {
+					layerState.basemap = e.target.checked;
+					applyVisibility();
+					updateURL();
+				});
+				document.getElementById('layer-hillshade').addEventListener('change', (e) => {
+					layerState.hillshade = e.target.checked;
+					applyVisibility();
+					updateURL();
+				});
+				document.getElementById('layer-terrain').addEventListener('change', (e) => {
+					layerState.terrain = e.target.checked;
+					applyVisibility();
+					updateURL();
+				});
+				document.getElementById('layer-uav').addEventListener('change', (e) => {
+					layerState.uav = e.target.checked;
+					applyVisibility();
+					updateURL();
+				});
+				document.getElementById('layer-maxar').addEventListener('change', (e) => {
+					layerState.maxar = e.target.checked;
+					applyVisibility();
+					updateURL();
 				});
 			};
 			function transformStyle(previous, next) {
@@ -504,6 +590,9 @@ ensure_site_root() {
 			maplibregl.addProtocol('pmtiles', protocol.tile);
 			console.log('pmtiles protocol registered via maplibregl.addProtocol');
 
+			// Parse URL parameters before creating map
+			parseLayersFromURL();
+
 			// Load the offline style (bundled by installer) with improved diagnostics.
 			let style = null;
 			try {
@@ -549,8 +638,10 @@ ensure_site_root() {
 			       }
 
 				wireControls();
+				syncCheckboxes();
 				map.on('styledata', applyVisibility);
 				applyVisibility();
+				updateURL();
 
 				// If you want to add 3D lighting or hillshade, extend the style.json with
 				// sources referencing /pmtiles/mapterhorn-sl.pmtiles and vector layers from protomaps.
