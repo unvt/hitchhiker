@@ -345,7 +345,7 @@ ensure_site_root() {
 	<link rel="stylesheet" href="/vendor/maplibre/maplibre-gl.css" />
 	<style>
 		html, body, #map { height: 100%; margin: 0; }
-		#banner { position: absolute; top: 0; left: 0; right: 0; z-index: 2; padding: 8px 10px; background: rgba(255,255,255,0.9); font: 14px/1.3 system-ui, -apple-system, sans-serif; transition: transform 0.3s; }
+		#banner { position: absolute; top: 0; left: 0; right: 0; z-index: 2; padding: 8px 10px 8px 50px; background: rgba(255,255,255,0.9); font: 14px/1.3 system-ui, -apple-system, sans-serif; transition: transform 0.3s; }
 		#banner.minimized { transform: translateY(-100%); }
 		#banner-header { display: flex; gap: 12px; align-items: center; justify-content: flex-start; }
 		#toggle-banner { position: fixed; top: 8px; left: 8px; z-index: 10; cursor: pointer; background: #e0e0e0; border: 1px solid #999; border-radius: 4px; padding: 2px 8px; font-size: 11px; user-select: none; }
@@ -358,8 +358,8 @@ ensure_site_root() {
 	</style>
 </head>
 <body>
+	<button id="toggle-banner" title="Toggle panel">▲</button>
 	<div id="banner">
-		<button id="toggle-banner" title="Toggle panel">▲</button>
 		<div id="banner-header">
 			<strong>UNVT Hitchhiker</strong>
 		</div>
