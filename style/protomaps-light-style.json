@@ -17,7 +17,7 @@
     ,
     "mapterhorn-hs": {
       "type": "raster-dem",
-      "attribution": "Mapterhorn (hillshade)",
+      "attribution": "Mapterhorn",
       "url": "pmtiles:///pmtiles/mapterhorn-sl.pmtiles",
       "tileSize": 512,
       "maxzoom": 12,

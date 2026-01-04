@@ -221,19 +221,19 @@ You can customize or replace the style before running the installer.
 After running `install.sh`, verify the site and assets with these best-effort checks (run on the device, or from a host that can reach it):
 
 ```sh
-# Replace <IP> with the device IP shown by the installer, or use 127.0.0.1 on-device.
-curl -fsS http://<IP>/ | sed -n '1,20p'
-curl -fsI http://<IP>/vendor/pmtiles/pmtiles.js
-curl -fsI http://<IP>/pmtiles/protomaps-sl.pmtiles
-curl -fsI http://<IP>/pmtiles/mapterhorn-sl.pmtiles
-curl -fsI http://<IP>/pmtiles/maxar-2020-freetown.pmtiles
-curl -fsI http://<IP>/pmtiles/freetown_2025-10-22_nearest.pmtiles
+# Replace hitchhiker with your device hostname or IP if different
+curl -fsS http://hitchhiker/ | sed -n '1,20p'
+curl -fsI http://hitchhiker/vendor/pmtiles/pmtiles.js
+curl -fsI http://hitchhiker/pmtiles/protomaps-sl.pmtiles
+curl -fsI http://hitchhiker/pmtiles/mapterhorn-sl.pmtiles
+curl -fsI http://hitchhiker/pmtiles/maxar-2020-freetown.pmtiles
+curl -fsI http://hitchhiker/pmtiles/freetown_2025-10-22_nearest.pmtiles
 # If Caddy appears down, restart and view logs:
 sudo systemctl restart caddy
 sudo journalctl -u caddy --no-pager -n 50
 ```
 
-Open a browser to `http://<IP>/` to confirm the map loads.
+Open a browser to `http://hitchhiker/` to confirm the map loads.
 
 **Caddy configuration strategy (conservative + uninstallable):**
 - A site snippet is written to `/etc/caddy/Caddyfile.d/hitchhiker.caddy`
@@ -286,9 +286,10 @@ Five independent layer toggles (checkbox-based), displayed as concise labels wit
 
 ### Panel Minimization
 
-- **Toggle button (▶/▼)** in the top-left corner collapses the control panel
+- **Toggle button (▲/▼)** in the top-left corner collapses the control panel
 - Useful for mobile devices or to maximize map viewing area
 - Panel slides up smoothly when minimized
+- Button remains visible even when panel is minimized (fixed positioning)
 
 ### URL State Persistence
 
