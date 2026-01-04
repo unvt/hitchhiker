@@ -656,7 +656,6 @@ ensure_site_root() {
 </body>
 </html>
 HTML
-	fi
 
 	# Ensure ownership and permissions suitable for a webserver user.
 	# Prefer the 'caddy' group (used by the Caddy package); fall back to 'www-data' or root.
