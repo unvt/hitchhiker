@@ -681,7 +681,6 @@ ensure_site_root() {
 				syncCheckboxes();
 				map.on('styledata', applyVisibility);
 				applyVisibility();
-				updateURL();
 
 				// If you want to add 3D lighting or hillshade, extend the style.json with
 				// sources referencing /pmtiles/mapterhorn-sl.pmtiles and vector layers from protomaps.
