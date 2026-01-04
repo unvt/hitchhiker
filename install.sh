@@ -334,8 +334,7 @@ install_caddy_if_missing() {
 ensure_site_root() {
 	mkdir -p "$VENDOR_DIR/maplibre" "$VENDOR_DIR/pmtiles" "$PMTILES_DIR"
 
-	# Create a minimal default index.html if it does not exist.
-	if [ ! -f "$SITE_ROOT/index.html" ]; then
+	# Always create/overwrite the default index.html to ensure latest version is installed.
 		cat > "$SITE_ROOT/index.html" <<'HTML'
 <!doctype html>
 <html lang="en">
@@ -348,7 +347,7 @@ ensure_site_root() {
 		html, body, #map { height: 100%; margin: 0; }
 		#banner { position: absolute; top: 0; left: 0; right: 0; z-index: 2; padding: 8px 10px; background: rgba(255,255,255,0.9); font: 14px/1.3 system-ui, -apple-system, sans-serif; transition: transform 0.3s; }
 		#banner.minimized { transform: translateY(-100%); }
-		#banner-header { display: flex; gap: 12px; align-items: center; justify-content: space-between; }
+		#banner-header { display: flex; gap: 12px; align-items: center; justify-content: flex-start; }
 		#toggle-banner { cursor: pointer; background: #e0e0e0; border: 1px solid #999; border-radius: 4px; padding: 2px 8px; font-size: 11px; user-select: none; }
 		#toggle-banner:hover { background: #d0d0d0; }
 		#map { position: absolute; top: 0; left: 0; right: 0; bottom: 0; }
@@ -361,24 +360,24 @@ ensure_site_root() {
 <body>
 	<div id="banner">
 		<div id="banner-header">
+			<button id="toggle-banner" title="Toggle panel">▼</button>
 			<strong>UNVT Hitchhiker</strong>
-			<button id="toggle-banner" title="Toggle panel">▲</button>
 		</div>
 		<div id="controls">
 			<div class="control">
-				<label><input type="checkbox" id="layer-basemap" checked> Basemap (Protomaps)</label>
+				<label title="Protomaps vector basemap"><input type="checkbox" id="layer-basemap" checked> basemap</label>
 			</div>
 			<div class="control">
-				<label><input type="checkbox" id="layer-hillshade" checked> Hillshade (Mapterhorn)</label>
+				<label title="Mapterhorn multi-directional hillshading"><input type="checkbox" id="layer-hillshade" checked> hillshade</label>
 			</div>
 			<div class="control">
-				<label><input type="checkbox" id="layer-terrain" checked> Terrain 3D (Mapterhorn)</label>
+				<label title="Mapterhorn 3D terrain elevation"><input type="checkbox" id="layer-terrain" checked> terrain</label>
 			</div>
 			<div class="control">
-				<label><input type="checkbox" id="layer-uav" checked> Imagery (UAV 2025)</label>
+				<label title="UAV 2025 high-resolution 4cm drone imagery"><input type="checkbox" id="layer-drone" checked> drone</label>
 			</div>
 			<div class="control">
-				<label><input type="checkbox" id="layer-maxar" checked> Imagery (Maxar 2020)</label>
+				<label title="Maxar 2020 satellite imagery 30cm resolution"><input type="checkbox" id="layer-satellite" checked> satellite</label>
 			</div>
 		</div>
 	</div>
@@ -389,15 +388,15 @@ ensure_site_root() {
 	<script>
 		(async function() {
 			let map = null;
-			const layerState = { basemap: true, hillshade: true, terrain: true, uav: true, maxar: true };
+			const layerState = { basemap: true, hillshade: true, terrain: true, drone: true, satellite: true };
 			
 			// Layer name mapping for URL fragment
 			const layerNames = {
-				basemap: 'protomaps',
+				basemap: 'basemap',
 				hillshade: 'hillshade',
 				terrain: 'terrain',
-				uav: 'uav',
-				maxar: 'maxar'
+				drone: 'drone',
+				satellite: 'satellite'
 			};
 			
 			// Parse URL fragment (format: #map=7/8.5/-11.5&layers=protomaps,hillshade)
@@ -450,10 +449,10 @@ ensure_site_root() {
 						try { map.setLayoutProperty(layer.id, 'visibility', layerState.hillshade ? 'visible' : 'none'); } catch (_) {}
 					}
 					if (layer.id === 'freetown-imagery') {
-						try { map.setLayoutProperty(layer.id, 'visibility', layerState.uav ? 'visible' : 'none'); } catch (_) {}
+						try { map.setLayoutProperty(layer.id, 'visibility', layerState.drone ? 'visible' : 'none'); } catch (_) {}
 					}
 					if (layer.id === 'maxar-2020-imagery') {
-						try { map.setLayoutProperty(layer.id, 'visibility', layerState.maxar ? 'visible' : 'none'); } catch (_) {}
+						try { map.setLayoutProperty(layer.id, 'visibility', layerState.satellite ? 'visible' : 'none'); } catch (_) {}
 					}
 				}
 				if (layerState.terrain && map.getSource('mapterhorn-dem')) {
@@ -467,15 +466,15 @@ ensure_site_root() {
 				document.getElementById('layer-basemap').checked = layerState.basemap;
 				document.getElementById('layer-hillshade').checked = layerState.hillshade;
 				document.getElementById('layer-terrain').checked = layerState.terrain;
-				document.getElementById('layer-uav').checked = layerState.uav;
-				document.getElementById('layer-maxar').checked = layerState.maxar;
+				document.getElementById('layer-drone').checked = layerState.drone;
+				document.getElementById('layer-satellite').checked = layerState.satellite;
 			};
 			
 			const wireControls = () => {
 				const toggleBanner = () => {
 					document.getElementById('banner').classList.toggle('minimized');
 					const btn = document.getElementById('toggle-banner');
-					btn.textContent = document.getElementById('banner').classList.contains('minimized') ? '▼' : '▲';
+					btn.textContent = document.getElementById('banner').classList.contains('minimized') ? '▶' : '▼';
 				};
 				document.getElementById('toggle-banner').addEventListener('click', toggleBanner);
 				
@@ -494,13 +493,13 @@ ensure_site_root() {
 					applyVisibility();
 					updateURL();
 				});
-				document.getElementById('layer-uav').addEventListener('change', (e) => {
-					layerState.uav = e.target.checked;
+				document.getElementById('layer-drone').addEventListener('change', (e) => {
+					layerState.drone = e.target.checked;
 					applyVisibility();
 					updateURL();
 				});
-				document.getElementById('layer-maxar').addEventListener('change', (e) => {
-					layerState.maxar = e.target.checked;
+				document.getElementById('layer-satellite').addEventListener('change', (e) => {
+					layerState.satellite = e.target.checked;
 					applyVisibility();
 					updateURL();
 				});
@@ -627,6 +626,12 @@ ensure_site_root() {
 				zoom: 7
 			});
 			map.addControl(new maplibregl.NavigationControl());
+			map.addControl(new maplibregl.GeolocateControl({
+				positionOptions: {
+					enableHighAccuracy: false
+				},
+				trackUserLocation: false
+			}));
 			       try {
 				       // Force full style replace to avoid diffing issues when previous
 				       // style is not fully loaded in some environments.

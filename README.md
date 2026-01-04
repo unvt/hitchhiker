@@ -277,16 +277,16 @@ The Hitchhiker web interface provides an intuitive layer control system:
 
 ### Layer Controls
 
-Five independent layer toggles (checkbox-based):
-- **Basemap (Protomaps)** - Vector basemap derived from OpenStreetMap
-- **Hillshade (Mapterhorn)** - Multi-directional hillshading for terrain visualization
-- **Terrain 3D (Mapterhorn)** - 3D terrain elevation (DEM with 1× exaggeration)
-- **Imagery (UAV 2025)** - High-resolution 4cm drone imagery (Freetown, 2025-10-22)
-- **Imagery (Maxar 2020)** - Satellite imagery 30cm resolution (Freetown, 2020-02-03)
+Five independent layer toggles (checkbox-based), displayed as concise labels with descriptive tooltips:
+- **basemap** - Vector basemap derived from OpenStreetMap (Protomaps)
+- **hillshade** - Multi-directional hillshading for terrain visualization (Mapterhorn)
+- **terrain** - 3D terrain elevation with DEM (Mapterhorn)
+- **drone** - High-resolution 4cm aerial imagery (Freetown 2025-10-22)
+- **satellite** - Satellite imagery 30cm resolution (Freetown 2020-02-03, Maxar)
 
 ### Panel Minimization
 
-- **Toggle button (▲/▼)** in the top-right corner collapses the control panel
+- **Toggle button (▶/▼)** in the top-left corner collapses the control panel
 - Useful for mobile devices or to maximize map viewing area
 - Panel slides up smoothly when minimized
 
@@ -297,14 +297,14 @@ Layer visibility is encoded in the URL hash fragment for easy sharing:
 **Format:** `#layers=<layer1>,<layer2>,...`
 
 This format is compatible with MapLibre's `#map=` fragment, allowing both to coexist:
-`#map=7/8.5/-11.5&layers=protomaps,hillshade`
+`#map=7/8.5/-11.5&layers=basemap,hillshade,terrain`
 
 **Layer names:**
-- `protomaps` - Basemap
+- `basemap` - Basemap
 - `hillshade` - Hillshade
 - `terrain` - Terrain 3D
-- `uav` - UAV 2025 imagery
-- `maxar` - Maxar 2020 imagery
+- `drone` - Drone imagery
+- `satellite` - Satellite imagery
 
 **Examples:**
 ```
@@ -312,19 +312,19 @@ This format is compatible with MapLibre's `#map=` fragment, allowing both to coe
 http://hitchhiker/
 
 # Basemap only
-http://hitchhiker/#layers=protomaps
+http://hitchhiker/#layers=basemap
 
 # Basemap + Hillshade
-http://hitchhiker/#layers=protomaps,hillshade
+http://hitchhiker/#layers=basemap,hillshade
 
 # Imagery only
-http://hitchhiker/#layers=uav,maxar
+http://hitchhiker/#layers=drone,satellite
 
-# Basemap + Terrain + UAV imagery
-http://hitchhiker/#layers=protomaps,hillshade,terrain,uav
+# Basemap + Terrain + Drone imagery
+http://hitchhiker/#layers=basemap,hillshade,terrain,drone
 
 # Combined with map position
-http://hitchhiker/#map=14/8.484/-13.231&layers=protomaps,uav
+http://hitchhiker/#map=14/8.484/-13.231&layers=basemap,drone
 ```
 
 **Remote Access:**
@@ -344,6 +344,13 @@ When adding new layers to the map style, update three locations in `/var/www/hit
 1. Add to `layerNames` object (JavaScript)
 2. Add checkbox control to HTML
 3. Add visibility logic to `applyVisibility()` function
+
+### Geolocation Control
+
+- **Locate button** is available in the top-left corner (part of MapLibre's standard controls)
+- Click to request the browser to find and zoom to your current location
+- Requires HTTPS or localhost secure context (see GeoLocation API note in main documentation)
+- Uses non-blocking geolocation request (does not track movement continuously)
 
 ---
 
