@@ -345,12 +345,12 @@ ensure_site_root() {
 	<link rel="stylesheet" href="/vendor/maplibre/maplibre-gl.css" />
 	<style>
 		html, body, #map { height: 100%; margin: 0; }
-		#banner { position: absolute; top: 0; left: 0; bottom: 0; width: 280px; z-index: 2; padding: 10px; background: rgba(255,255,255,0.95); font: 14px/1.3 system-ui, -apple-system, sans-serif; transition: transform 0.3s; overflow-y: auto; box-shadow: 2px 0 4px rgba(0,0,0,0.1); }
+		#banner { position: absolute; top: 0; left: 0; bottom: 0; width: 140px; z-index: 2; padding: 10px; background: rgba(255,255,255,0.95); font: 14px/1.3 system-ui, -apple-system, sans-serif; transition: transform 0.3s; overflow-y: auto; box-shadow: 2px 0 4px rgba(0,0,0,0.1); }
 		#banner.minimized { transform: translateX(-100%); }
 		#banner-header { margin-bottom: 12px; }
 		#banner-header strong { font-size: 16px; }
 		#toggle-banner { position: fixed; top: 50%; left: 0; transform: translateY(-50%); z-index: 10; cursor: pointer; background: rgba(255,255,255,0.95); border: 1px solid #999; border-left: none; border-radius: 0 4px 4px 0; padding: 8px 4px; font-size: 14px; user-select: none; box-shadow: 2px 0 4px rgba(0,0,0,0.1); transition: left 0.3s; }
-		#toggle-banner.panel-open { left: 280px; }
+		#toggle-banner.panel-open { left: 140px; }
 		#toggle-banner:hover { background: #f0f0f0; }
 		#map { position: absolute; top: 0; left: 0; right: 0; bottom: 0; }
 		#controls { display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
@@ -360,8 +360,8 @@ ensure_site_root() {
 	</style>
 </head>
 <body>
-	<button id="toggle-banner" class="panel-open" title="Toggle panel">◀</button>
-	<div id="banner">
+	<button id="toggle-banner" title="Toggle panel">▶</button>
+	<div id="banner" class="minimized">
 		<div id="banner-header">
 			<strong>UNVT Hitchhiker</strong>
 		</div>
@@ -401,7 +401,7 @@ ensure_site_root() {
 				satellite: 'satellite'
 			};
 			
-			// Parse URL fragment (format: #map=7/8.5/-11.5&layers=protomaps,hillshade)
+			// Parse URL fragment (format: #map=7/8.5/-11.5&layers=basemap,hillshade&panel=open)
 			const parseLayersFromURL = () => {
 				const hash = window.location.hash.substring(1); // Remove '#'
 				if (!hash) return;
@@ -418,7 +418,16 @@ ensure_site_root() {
 				// If no 'layers' param, keep default (all enabled)
 			};
 			
-			// Update URL hash with current layer state (only if different from default)
+			// Parse panel state from URL (default: closed)
+			const parsePanelFromURL = () => {
+				const hash = window.location.hash.substring(1);
+				if (!hash) return 'closed'; // default
+				const params = new URLSearchParams(hash);
+				const panelParam = params.get('panel');
+				return panelParam === 'open' ? 'open' : 'closed';
+			};
+			
+			// Update URL hash with current layer state and panel state
 			const updateURL = () => {
 				const enabledLayers = [];
 				for (const key in layerState) {
@@ -435,6 +444,13 @@ ensure_site_root() {
 					params.set('layers', enabledLayers.join(','));
 				} else {
 					params.delete('layers');
+				}
+				// Add panel state (only if open, since default is closed)
+				const isPanelOpen = !document.getElementById('banner').classList.contains('minimized');
+				if (isPanelOpen) {
+					params.set('panel', 'open');
+				} else {
+					params.delete('panel'); // default is closed, no need to specify
 				}
 				window.location.hash = params.toString();
 			};
@@ -473,9 +489,18 @@ ensure_site_root() {
 			};
 			
 			const wireControls = () => {
+				// Apply panel state from URL
+				const panelState = parsePanelFromURL();
+				const banner = document.getElementById('banner');
+				const btn = document.getElementById('toggle-banner');
+				if (panelState === 'open') {
+					banner.classList.remove('minimized');
+					btn.textContent = '◀';
+					btn.classList.add('panel-open');
+				}
+				// If closed (default), initial HTML already has the right state
+				
 				const toggleBanner = () => {
-					const banner = document.getElementById('banner');
-					const btn = document.getElementById('toggle-banner');
 					banner.classList.toggle('minimized');
 					const isMinimized = banner.classList.contains('minimized');
 					btn.textContent = isMinimized ? '▶' : '◀';
@@ -484,6 +509,7 @@ ensure_site_root() {
 					} else {
 						btn.classList.add('panel-open');
 					}
+					updateURL();
 				};
 				document.getElementById('toggle-banner').addEventListener('click', toggleBanner);
 				
