@@ -348,7 +348,7 @@ ensure_site_root() {
 		#banner { position: absolute; top: 0; left: 0; right: 0; z-index: 2; padding: 8px 10px; background: rgba(255,255,255,0.9); font: 14px/1.3 system-ui, -apple-system, sans-serif; transition: transform 0.3s; }
 		#banner.minimized { transform: translateY(-100%); }
 		#banner-header { display: flex; gap: 12px; align-items: center; justify-content: flex-start; }
-		#toggle-banner { cursor: pointer; background: #e0e0e0; border: 1px solid #999; border-radius: 4px; padding: 2px 8px; font-size: 11px; user-select: none; }
+		#toggle-banner { position: fixed; top: 8px; left: 8px; z-index: 10; cursor: pointer; background: #e0e0e0; border: 1px solid #999; border-radius: 4px; padding: 2px 8px; font-size: 11px; user-select: none; }
 		#toggle-banner:hover { background: #d0d0d0; }
 		#map { position: absolute; top: 0; left: 0; right: 0; bottom: 0; }
 		#controls { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; margin-top: 8px; }
@@ -359,8 +359,8 @@ ensure_site_root() {
 </head>
 <body>
 	<div id="banner">
+		<button id="toggle-banner" title="Toggle panel">▲</button>
 		<div id="banner-header">
-			<button id="toggle-banner" title="Toggle panel">▼</button>
 			<strong>UNVT Hitchhiker</strong>
 		</div>
 		<div id="controls">
@@ -474,7 +474,7 @@ ensure_site_root() {
 				const toggleBanner = () => {
 					document.getElementById('banner').classList.toggle('minimized');
 					const btn = document.getElementById('toggle-banner');
-					btn.textContent = document.getElementById('banner').classList.contains('minimized') ? '▶' : '▼';
+					btn.textContent = document.getElementById('banner').classList.contains('minimized') ? '▼' : '▲';
 				};
 				document.getElementById('toggle-banner').addEventListener('click', toggleBanner);
 				
