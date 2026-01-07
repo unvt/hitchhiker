@@ -677,10 +677,14 @@ ensure_site_root() {
 				       try { map.setStyle(style); } catch (e2) { console.error('fallback setStyle also failed:', e2); }
 			       }
 
+				// wireControls() and syncCheckboxes() MUST run before styledata event
+				// to ensure URLparsed layerState is ready, but applyVisibility()
+				// must only run AFTER style is fully loaded.
 				wireControls();
 				syncCheckboxes();
-				map.on('styledata', applyVisibility);
-				applyVisibility();
+				map.once('styledata', () => {
+					applyVisibility();
+				});
 
 				// If you want to add 3D lighting or hillshade, extend the style.json with
 				// sources referencing /pmtiles/mapterhorn-sl.pmtiles and vector layers from protomaps.
